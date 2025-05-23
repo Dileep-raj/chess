@@ -1,0 +1,507 @@
+package com.drdedd.chess.game;
+
+
+import com.drdedd.chess.game.data.Regexes;
+import com.drdedd.chess.game.gameData.Player;
+import com.drdedd.chess.game.gameData.Rank;
+import com.drdedd.chess.game.gameData.Unicodes;
+import com.drdedd.chess.game.interfaces.GameLogicInterface;
+import com.drdedd.chess.game.pieces.*;
+import com.drdedd.chess.misc.MiscMethods;
+import lombok.Getter;
+
+import java.io.Serializable;
+import java.util.*;
+import java.util.regex.Matcher;
+
+/**
+ * Stores pieces location, enPassant square and other board UI data<br>
+ */
+public class BoardModel implements Serializable, Cloneable {
+    private static final String TAG = "BoardModel";
+    public final HashMap<String, Integer> resIDs = new HashMap<>();
+    private final HashMap<String, String> unicodes = new HashMap<>();
+    /**
+     * Set of all the pieces on the board
+     */
+    public LinkedHashSet<Piece> pieces = new LinkedHashSet<>();
+    private King whiteKing = null, blackKing = null;
+    public Pawn enPassantPawn = null;
+    public String enPassantSquare = "", fromSquare = "", toSquare = "";
+    @Getter
+    private int halfMove;
+    @Getter
+    private int fullMove;
+
+    public BoardModel(boolean initializeBoard) {
+        Player.WHITE.setInCheck(false);
+        Player.BLACK.setInCheck(false);
+
+        unicodes.put("QW", Unicodes.unicode_qw);
+        unicodes.put("RW", Unicodes.unicode_rw);
+        unicodes.put("BW", Unicodes.unicode_bw);
+        unicodes.put("NW", Unicodes.unicode_nw);
+
+        unicodes.put("QB", Unicodes.unicode_qb);
+        unicodes.put("RB", Unicodes.unicode_rb);
+        unicodes.put("BB", Unicodes.unicode_bb);
+        unicodes.put("NB", Unicodes.unicode_nb);
+
+        if (initializeBoard) resetBoard();
+
+        resIDs.put(Player.WHITE + Rank.QUEEN.toString(), -1);
+        resIDs.put(Player.WHITE + Rank.ROOK.toString(), -1);
+        resIDs.put(Player.WHITE + Rank.BISHOP.toString(), -1);
+        resIDs.put(Player.WHITE + Rank.KNIGHT.toString(), -1);
+
+        resIDs.put(Player.BLACK + Rank.QUEEN.toString(), -1);
+        resIDs.put(Player.BLACK + Rank.ROOK.toString(), -1);
+        resIDs.put(Player.BLACK + Rank.BISHOP.toString(), -1);
+        resIDs.put(Player.BLACK + Rank.KNIGHT.toString(), -1);
+    }
+
+    /**
+     * Resets the board to initial state
+     */
+    public void resetBoard() {
+        int i;
+        pieces.clear();
+        for (i = 0; i <= 1; i++) {
+            addPiece(new Rook(Player.WHITE, 0, i * 7, -1, Unicodes.unicode_rw));
+            addPiece(new Knight(Player.WHITE, 0, 1 + i * 5, -1, Unicodes.unicode_nw));
+            addPiece(new Bishop(Player.WHITE, 0, 2 + i * 3, -1, Unicodes.unicode_bw));
+
+
+            addPiece(new Rook(Player.BLACK, 7, i * 7, -1, Unicodes.unicode_rb));
+            addPiece(new Knight(Player.BLACK, 7, 1 + i * 5, -1, Unicodes.unicode_nb));
+            addPiece(new Bishop(Player.BLACK, 7, 2 + i * 3, -1, Unicodes.unicode_bb));
+
+        }
+
+//        King and Queen pieces
+        addPiece(new King(Player.WHITE, 0, 4, -1, Unicodes.unicode_kw));
+        addPiece(new Queen(Player.WHITE, 0, 3, -1, Unicodes.unicode_qw));
+
+        addPiece(new King(Player.BLACK, 7, 4, -1, Unicodes.unicode_kb));
+        addPiece(new Queen(Player.BLACK, 7, 3, -1, Unicodes.unicode_qb));
+
+//        Pawn pieces
+        for (i = 0; i < 8; i++) {
+            addPiece(new Pawn(Player.WHITE, 1, i, -1, Unicodes.unicode_pw));
+            addPiece(new Pawn(Player.BLACK, 6, i, -1, Unicodes.unicode_pb));
+        }
+
+        halfMove = 0;
+        fullMove = 1;
+    }
+
+    /**
+     * Returns Black king from <code>{@link BoardModel#pieces}</code> set
+     *
+     * @return <code>{@link King}</code>
+     */
+    public King getBlackKing() {
+        for (Piece piece : pieces)
+            if (piece.isKing() && !piece.isWhite()) {
+                blackKing = (King) piece;
+                break;
+            }
+        return blackKing;
+    }
+
+    /**
+     * Returns White king from <code>{@link BoardModel#pieces}</code> set
+     *
+     * @return <code>{@link  King}</code>
+     */
+    public King getWhiteKing() {
+        for (Piece piece : pieces)
+            if (piece.isKing() && piece.isWhite()) {
+                whiteKing = (King) piece;
+                break;
+            }
+        return whiteKing;
+    }
+
+    /**
+     * Returns piece at a given position
+     *
+     * @param row Row number
+     * @param col Column number
+     * @return <code>{@link Piece}|null</code>
+     */
+    public Piece pieceAt(int row, int col) {
+        if (row < 0 || row > 7 || col < 0 || col > 7) return null;
+        for (Piece piece : pieces)
+            if (!piece.isCaptured() && piece.getCol() == col && piece.getRow() == row) return piece;
+        return null;
+    }
+
+    /**
+     * Search for piece from a specific row
+     *
+     * @param gameLogicInterface GameLogicInterface
+     * @param player             Player of the piece
+     * @param rank               Rank of the piece
+     * @param row                Row to be searched
+     * @param destRow            Destination row
+     * @param destCol            Destination column
+     * @return <code>Piece|null</code>
+     */
+    public Piece searchRow(GameLogicInterface gameLogicInterface, Player player, Rank rank, int row, int destRow, int destCol) {
+        for (Piece piece : pieces) {
+            if (piece.getPlayer() != player || piece.isCaptured()) continue;
+            if (piece.getRank() == rank && row == piece.getRow() && piece.canMoveTo(gameLogicInterface, destRow, destCol))
+                return piece;
+        }
+        return null;
+    }
+
+    /**
+     * Search for piece from a specific column
+     *
+     * @param gameLogicInterface GameLogicInterface
+     * @param player             Player of the piece
+     * @param rank               Rank of the piece
+     * @param col                Column to be searched
+     * @param destRow            Destination row
+     * @param destCol            Destination column
+     * @return <code>Piece|null</code>
+     */
+    public Piece searchCol(GameLogicInterface gameLogicInterface, Player player, Rank rank, int col, int destRow, int destCol) {
+        for (Piece piece : pieces) {
+            if (piece.getPlayer() != player || piece.isCaptured()) continue;
+            if (piece.getRank() == rank && col == piece.getCol() && piece.canMoveTo(gameLogicInterface, destRow, destCol))
+                return piece;
+        }
+        return null;
+    }
+
+    /**
+     * Search for piece from a specific position
+     *
+     * @param gameLogicInterface GameLogicInterface
+     * @param player             Player of the piece
+     * @param rank               Rank of the piece
+     * @param row                Row to be searched
+     * @param col                Col to be searched
+     * @return <code>Piece|null</code>
+     */
+    public Piece searchPiece(GameLogicInterface gameLogicInterface, Player player, Rank rank, int row, int col) {
+        for (Piece piece : pieces) {
+            if (piece.getPlayer() != player || piece.isCaptured()) continue;
+            if (piece.getRank() == rank && piece.canMoveTo(gameLogicInterface, row, col)) return piece;
+        }
+        return null;
+    }
+
+    /**
+     * Captures the piece and removes it from board view
+     *
+     * @param piece <code>Piece</code> to be captured
+     */
+    public boolean capturePiece(Piece piece) {
+        piece.setCaptured(true);
+        return piece.isCaptured();
+    }
+
+    /**
+     * Adds the given piece into <code>{@link BoardModel#pieces}</code> set
+     *
+     * @param piece <code>Piece</code> to be added
+     */
+    public void addPiece(Piece piece) {
+        pieces.add(piece);
+    }
+
+    /**
+     * Promotes a pawn to higher rank on reaching last rank
+     *
+     * @param pawn <code>Pawn</code> to be promoted
+     * @param rank <code>Queen|Rook|Knight|Bishop</code>
+     * @param row  Row of the pawn
+     * @param col  Column of the pawn
+     * @return <code>{@link Piece}</code> - Promoted piece
+     */
+    public Piece promote(Piece pawn, Rank rank, int row, int col) {
+        Piece piece = null;
+        Integer queen = resIDs.get(pawn.getPlayer() + Rank.QUEEN.toString());
+        Integer rook = resIDs.get(pawn.getPlayer() + Rank.ROOK.toString());
+        Integer bishop = resIDs.get(pawn.getPlayer() + Rank.BISHOP.toString());
+        Integer knight = resIDs.get(pawn.getPlayer() + Rank.KNIGHT.toString());
+
+        if (rank == Rank.QUEEN && queen != null)
+            piece = new Queen(pawn.getPlayer(), row, col, queen, unicodes.get("Q" + pawn.getPlayer().toString().charAt(0)));
+        if (rank == Rank.ROOK && rook != null)
+            piece = new Rook(pawn.getPlayer(), row, col, rook, unicodes.get("R" + pawn.getPlayer().toString().charAt(0)));
+        if (rank == Rank.BISHOP && bishop != null)
+            piece = new Bishop(pawn.getPlayer(), row, col, bishop, unicodes.get("B" + pawn.getPlayer().toString().charAt(0)));
+        if (rank == Rank.KNIGHT && knight != null)
+            piece = new Knight(pawn.getPlayer(), row, col, knight, unicodes.get("N" + pawn.getPlayer().toString().charAt(0)));
+
+        if (piece != null) {
+            addPiece(piece);
+//            System.out.println(TAG+" promote: Promoted " + pawn.getPosition().charAt(1) + " file pawn to " + piece.getRank());
+        }
+        pieces.remove(pawn);
+//        removePiece(pawn);
+        return piece;
+    }
+
+    /**
+     * Converts the <code>BoardModel</code> to <code>String</code> type <br>
+     * <ul>
+     * <li>UpperCase letter represents White Piece <br></li>
+     * <li>LowerCase letter represents Black Piece <br></li>
+     * <li>Hyphen (-) represents empty square</li>
+     * </ul>
+     *
+     * @return Standard board notation
+     */
+    @Override
+    public String toString() {
+        StringBuilder board = new StringBuilder("Board:\n");
+        int i, j;
+        for (i = 7; i >= 0; i--) {
+            board.append(' ').append(i + 1).append(' ');
+            for (j = 0; j < 8; j++) {
+                Piece tempPiece = pieceAt(i, j);
+                if (tempPiece == null) board.append("- ");
+                else board.append(MiscMethods.getPieceChar(tempPiece)).append(' ');
+            }
+            board.append("\n");
+        }
+        board.append("   a b c d e f g h");
+        return String.valueOf(board);
+    }
+
+    /**
+     * Converts the <code>BoardModel</code> to <code>String</code> type <br>
+     * Uses Unicode to represent pieces and hyphen (-) for empty square
+     *
+     * @return Unicode board
+     */
+    public String unicode() {
+        StringBuilder board = new StringBuilder("Board:\n");
+        int i, j;
+        for (i = 7; i >= 0; i--) {
+            board.append(' ').append(i + 1).append(' ');
+            for (j = 0; j < 8; j++) {
+                Piece tempPiece = pieceAt(i, j);
+                if (tempPiece == null) board.append("- ");
+                else board.append(tempPiece.getUnicode()).append(' ');
+            }
+            board.append("\n");
+        }
+        board.append("   a b c d e f g h");
+        return String.valueOf(board);
+    }
+
+    @Override
+    public BoardModel clone() {
+        try {
+            BoardModel boardModelClone = (BoardModel) super.clone();
+            boardModelClone.pieces = new LinkedHashSet<>();
+            for (Piece piece : pieces) boardModelClone.pieces.add(piece.clone());
+
+            if (enPassantPawn != null) boardModelClone.enPassantPawn = (Pawn) enPassantPawn.clone();
+            else boardModelClone.enPassantPawn = null;
+
+            return boardModelClone;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
+    }
+
+    /**
+     * Converts current position to FEN Notation <br>
+     *
+     * @return <code>String</code> - FEN of the <code>BoardModel</code>
+     * @see <a href="https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation">More about FEN</a>
+     */
+    public String toFEN(GameLogicInterface gameLogicInterface) {
+        String[] fenStrings = toFENStrings(gameLogicInterface);
+        return String.format(Locale.ENGLISH, "%s %s %s %s %s %s", fenStrings[0], fenStrings[1], fenStrings[2], fenStrings[3], fenStrings[4], fenStrings[5]);
+    }
+
+    private String[] toFENStrings(GameLogicInterface gameLogicInterface) {
+        String[] FEN = new String[6];
+
+        StringBuilder position = new StringBuilder();
+        int i, j, c = 0;
+        for (i = 7; i >= 0; i--) {
+            for (j = 0; j < 8; j++) {
+                Piece tempPiece = pieceAt(i, j);
+                if (tempPiece == null) c++;
+                else {
+                    if (c > 0) {
+                        position.append(c);
+                        c = 0;
+                    }
+                    position.append(MiscMethods.getPieceChar(tempPiece));
+                }
+            }
+            if (c > 0) {
+                position.append(c);
+                c = 0;
+            }
+            if (i != 0) position.append("/");
+        }
+
+        FEN[0] = String.valueOf(position);
+
+        if (gameLogicInterface.isWhiteToPlay()) FEN[1] = "w";
+        else FEN[1] = "b";
+
+        StringBuilder castleRights = getCastleRights();
+        if (castleRights.isEmpty()) FEN[2] = "-";
+        else FEN[2] = String.valueOf(castleRights);
+
+        if (enPassantSquare.isEmpty()) FEN[3] = "-";
+        else FEN[3] = enPassantSquare;
+
+        FEN[4] = String.valueOf(halfMove);
+        FEN[5] = String.valueOf(fullMove);
+
+        return FEN;
+    }
+
+    private StringBuilder getCastleRights() {
+        King whiteKing = getWhiteKing(), blackKing = getBlackKing();
+        StringBuilder castleRights = new StringBuilder();
+        if (whiteKing != null) {
+            if (whiteKing.isNotShortCastled()) castleRights.append('K');
+            if (whiteKing.isNotLongCastled()) castleRights.append('Q');
+        }
+        if (blackKing != null) {
+            if (blackKing.isNotShortCastled()) castleRights.append('k');
+            if (blackKing.isNotLongCastled()) castleRights.append('q');
+        }
+        return castleRights;
+    }
+
+    /**
+     * Parses the valid FEN to BoardModel
+     *
+     * @param FEN Valid FEN String
+     * @return <code>BoardModel|null</code>
+     */
+    public static BoardModel parseFEN(String FEN) {
+        BoardModel boardModel = new BoardModel(false);
+        Matcher matcher = Regexes.FENPattern.matcher(FEN);
+        if (!matcher.find()) {
+            System.out.println(TAG + " parseFEN: Invalid FEN! FEN didn't match the pattern");
+            return null;
+        }
+        StringTokenizer FENTokens = new StringTokenizer(FEN, " ");
+        int tokens = FENTokens.countTokens();
+        if (tokens > 6 || tokens < 4) {
+            System.out.println(TAG + " parseFEN: Invalid FEN! found " + tokens + " fields");
+            return null;
+        }
+        String board = FENTokens.nextToken();
+        String nextPlayer = FENTokens.nextToken();
+        String castlingAvailability = FENTokens.nextToken();
+        String enPassantSquare = FENTokens.nextToken();
+        String halfMoveClock = "", fullMoveNumber = "";
+        Player activePlayer;
+        boolean whiteShortCastle = false, whiteLongCastle = false, blackShortCastle = false, blackLongCastle = false;
+
+        if (FENTokens.hasMoreTokens()) halfMoveClock = FENTokens.nextToken();
+        if (FENTokens.hasMoreTokens()) fullMoveNumber = FENTokens.nextToken();
+
+        StringTokenizer boardTokens = new StringTokenizer(board, "/");
+        if (boardTokens.countTokens() != 8) {
+            System.out.println(TAG + " parseFEN: Invalid FEN! found " + tokens + " rows in board field");
+            return null;
+        }
+
+//        Convert pieces to BoardModel
+        int i, row = 7, col;
+        while (boardTokens.hasMoreTokens()) {
+            String rank = boardTokens.nextToken();
+            for (i = 0, col = 0; i < rank.length(); i++) {
+                Player player;
+                Piece piece;
+                char ch = rank.charAt(i);
+                if (Character.isDigit(ch)) {
+                    col += ch - '0';
+                    continue;
+                }
+                if (i > 8) {
+                    System.out.println(TAG + " parseFEN: Invalid FEN! found " + col + " columns in rank " + (i + 1));
+                    return null;
+                }
+                player = Character.isUpperCase(ch) ? Player.WHITE : Player.BLACK;
+                boolean isWhite = player == Player.WHITE;
+                switch (Character.toLowerCase(ch)) {
+                    case 'k':
+                        piece = new King(player, row, col, -1, isWhite ? Unicodes.unicode_kw : Unicodes.unicode_kb);
+                        break;
+                    case 'q':
+                        piece = new Queen(player, row, col, -1, isWhite ? Unicodes.unicode_qw : Unicodes.unicode_qb);
+                        break;
+                    case 'r':
+                        piece = new Rook(player, row, col, -1, isWhite ? Unicodes.unicode_rw : Unicodes.unicode_rb);
+                        break;
+                    case 'b':
+                        piece = new Bishop(player, row, col, -1, isWhite ? Unicodes.unicode_bw : Unicodes.unicode_bb);
+                        break;
+                    case 'n':
+                        piece = new Knight(player, row, col, -1, isWhite ? Unicodes.unicode_nw : Unicodes.unicode_nb);
+                        break;
+                    case 'p':
+                        piece = new Pawn(player, row, col, -1, isWhite ? Unicodes.unicode_pw : Unicodes.unicode_pb);
+                        if (row != (isWhite ? 1 : 6)) piece.setMoved(true);
+                        break;
+                    default:
+                        System.out.println(TAG + " parseFEN: Invalid FEN! found invalid character " + ch);
+                        return null;
+                }
+                boardModel.addPiece(piece);
+                col++;
+            }
+            row--;
+        }
+
+//        Player to play next move
+        activePlayer = nextPlayer.equals("w") ? Player.WHITE : Player.BLACK;
+
+//        Castling availability for each player
+        if (!castlingAvailability.equals("-")) {
+            whiteShortCastle = castlingAvailability.contains("K");
+            whiteLongCastle = castlingAvailability.contains("Q");
+            blackShortCastle = castlingAvailability.contains("k");
+            blackLongCastle = castlingAvailability.contains("q");
+        }
+
+        if (!enPassantSquare.equals("-")) {
+            boardModel.enPassantSquare = enPassantSquare;
+            boardModel.enPassantPawn = (Pawn) boardModel.pieceAt(MiscMethods.toRow(enPassantSquare) - (activePlayer == Player.WHITE ? 1 : -1), MiscMethods.toCol(enPassantSquare));
+        }
+//        System.out.println(TAG + " parseFEN: Successfully parsed FEN to BoardModel");
+
+//        System.out.println(TAG+ " "+String.format(Locale.ENGLISH, "\nGiven FEN: %s\nConverted BoardModel:%s\nConverted BoardModel FEN: %s\nPlayer to play: %s\nWhite ShortCastle: %b\tLongCastle: %b\nBlack ShortCastle: %b\tLongCastle: %b\nEnPassantPawn: %s", FEN, boardModel, boardModel.toFENStrings()[0], activePlayer, whiteShortCastle, whiteLongCastle, blackShortCastle, blackLongCastle, boardModel.enPassantPawn == null ? "-" : boardModel.enPassantPawn.getPosition()));
+//        if (!halfMoveClock.isEmpty() && !fullMoveNumber.isEmpty())
+//            System.out.println(TAG + " " + String.format("parseFEN: Half move clock: %s, Full move count: %s", halfMoveClock, fullMoveNumber));
+
+        boardModel.setMoveClocks(Integer.parseInt(halfMoveClock), Integer.parseInt(fullMoveNumber));
+
+//        System.out.println(TAG + " parseFEN: Valid FEN\n");
+        return boardModel;
+    }
+
+    public void setMoveClocks(int halfMove, int fullMove) {
+        this.halfMove = halfMove;
+        this.fullMove = fullMove;
+    }
+
+    /**
+     * @return List of all captured pieces
+     */
+    public ArrayList<Piece> getCapturedPieces() {
+        ArrayList<Piece> capturedPieces = new ArrayList<>();
+        for (Piece piece : pieces) if (piece.isCaptured()) capturedPieces.add(piece);
+        return capturedPieces;
+    }
+}
