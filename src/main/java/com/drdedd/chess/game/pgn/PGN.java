@@ -1,6 +1,5 @@
 package com.drdedd.chess.game.pgn;
 
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,33 +24,17 @@ public class PGN implements Serializable {
     public static final String TAG_APP = "App", TAG_WHITE = "White", TAG_DATE = "Date", TAG_BLACK = "Black", TAG_SET_UP = "SetUp", TAG_FEN = "FEN", TAG_RESULT = "Result", TAG_TERMINATION = "Termination";
     public static final String TAG_ECO = "ECO", TAG_OPENING = "Opening", TAG_WHITE_TITLE = "WhiteTitle", TAG_BLACK_TITLE = "BlackTitle", TAG_WHITE_ELO = "WhiteElo", TAG_BLACK_ELO = "BlackElo";
     public static final String TAG_ANALYZED_BY = "AnalyzedBy", TAG_ANNOTATOR = "Annotator";
-    private final String FEN;
+    private final String startingPosition;
     private final LinkedHashMap<String, String> allTags = new LinkedHashMap<>();
     /**
-     * -- SETTER --
-     * Set termination message for the game
-     * <p>
-     * <p>
-     * -- GETTER --
-     * Get termination message of the game
-     *
-     * @param termination Termination message
-     * @return <code>String</code> - Termination message
+     * Termination message
      */
     @Getter
     @Setter
     private String termination = "";
     private PGNData data;
-    private AnalysisReport report;
     /**
-     * -- GETTER --
-     * <p>
-     * <p>
-     * -- SETTER --
-     * Sets white to play
-     *
-     * @return <code>true|false</code> - White to play
-     * @param whiteToPlay White to play
+     * Flag - White to play
      */
     @Setter
     @Getter
@@ -73,7 +56,7 @@ public class PGN implements Serializable {
         allTags.put(TAG_BLACK, black);
         allTags.put(TAG_DATE, date);
         this.whiteToPlay = whiteToPlay;
-        FEN = "";
+        startingPosition = "";
 //        moves.clear();
 //        uciMoves.clear();
 //        commentsMap = new LinkedHashMap<>();
@@ -86,20 +69,20 @@ public class PGN implements Serializable {
     }
 
     /**
-     * @param app         Name of app
-     * @param white       Name of White player
-     * @param black       Name of Black player
-     * @param date        Date of the game
-     * @param whiteToPlay Player to play
-     * @param FEN         Starting position of the game
+     * @param app              Name of app
+     * @param white            Name of White player
+     * @param black            Name of Black player
+     * @param date             Date of the game
+     * @param whiteToPlay      Player to play
+     * @param startingPosition Starting position of the game
      */
-    public PGN(String app, String white, String black, String date, boolean whiteToPlay, String FEN) {
+    public PGN(String app, String white, String black, String date, boolean whiteToPlay, String startingPosition) {
         allTags.put(TAG_APP, app);
         allTags.put(TAG_WHITE, white);
         allTags.put(TAG_BLACK, black);
         allTags.put(TAG_DATE, date);
         this.whiteToPlay = whiteToPlay;
-        this.FEN = FEN;
+        this.startingPosition = startingPosition;
 //        moves.clear();
 //        uciMoves.clear();
 //        commentsMap = new LinkedHashMap<>();
@@ -119,17 +102,17 @@ public class PGN implements Serializable {
      */
     public void addMove(String sanMove, String uciMove) {
         data.addMove(sanMove, uciMove);
-//        data.getSANMoves().addLast(sanMove);
-//        data.getUCIMoves().addLast(uciMove);
+//        data.getSanMoves().addLast(sanMove);
+//        data.getUciMoves().addLast(uciMove);
     }
 
     /**
      * Removes last move from PGN
      */
     public void removeLast() {
-        if (!data.getSANMoves().isEmpty()) {
-            data.getSANMoves().removeLast();
-            data.getUCIMoves().removeLast();
+        if (!data.getSanMoves().isEmpty()) {
+            data.getSanMoves().removeLast();
+            data.getUciMoves().removeLast();
         }
     }
 
@@ -177,9 +160,9 @@ public class PGN implements Serializable {
         StringBuilder tags = new StringBuilder();
         allTags.put(TAG_RESULT, getResult());
         if (!termination.isEmpty()) allTags.put(TAG_TERMINATION, termination);
-        if (FEN != null && !FEN.isEmpty()) {
+        if (startingPosition != null && !startingPosition.isEmpty()) {
             allTags.put(TAG_SET_UP, "1");
-            allTags.put(TAG_FEN, FEN);
+            allTags.put(TAG_FEN, startingPosition);
         }
         Set<String> tagSet = allTags.keySet();
         for (String tag : tagSet) {
@@ -213,10 +196,10 @@ public class PGN implements Serializable {
      */
     public String getPGNMoves() {
         StringBuilder pgn = new StringBuilder();
-        int length = data.getSANMoves().size();
+        int length = data.getSanMoves().size();
         for (int i = 0; i < length; i++) {
             if (i % 2 == 0) pgn.append(i / 2 + 1).append(". ");
-            pgn.append(data.getSANMoves().get(i)).append(' ');
+            pgn.append(data.getSanMoves().get(i)).append(' ');
         }
         return pgn.toString();
     }
@@ -226,10 +209,10 @@ public class PGN implements Serializable {
      */
     public String getPGNCommented() {
         StringBuilder pgn = new StringBuilder();
-        int length = data.getSANMoves().size();
+        int length = data.getSanMoves().size();
         for (int i = 0; i < length; i++) {
             if (i % 2 == 0) pgn.append(i / 2 + 1).append(". ");
-            pgn.append(data.getSANMoves().get(i));
+            pgn.append(data.getSanMoves().get(i));
             if (data.getAnnotationMap().containsKey(i)) pgn.append(data.getAnnotationMap().get(i).getAnnotation());
             pgn.append(' ');
             if (data.getCommentsMap().containsKey(i)) pgn.append(data.getCommentsMap().get(i)).append(' ');
@@ -243,7 +226,7 @@ public class PGN implements Serializable {
      * @return Number of half moves played
      */
     public int getPlyCount() {
-        return data.getSANMoves().size();
+        return data.getSanMoves().size();
     }
 
     /**
@@ -251,7 +234,7 @@ public class PGN implements Serializable {
      * @return <code>String|null</code> - Move at given position
      */
     public String getMoveAt(int moveNo) {
-        if (moveNo < data.getSANMoves().size()) return data.getSANMoves().get(moveNo);
+        if (moveNo < data.getSanMoves().size()) return data.getSanMoves().get(moveNo);
         return null;
     }
 
@@ -260,7 +243,7 @@ public class PGN implements Serializable {
      * @return <code>String|null</code> - UCI move at given position
      */
     public String getUCIMoveAt(int moveNo) {
-        if (moveNo < data.getUCIMoves().size()) return data.getUCIMoves().get(moveNo);
+        if (moveNo < data.getUciMoves().size()) return data.getUciMoves().get(moveNo);
         return null;
     }
 
@@ -268,14 +251,14 @@ public class PGN implements Serializable {
      * @return List of moves
      */
     public LinkedList<String> getMoves() {
-        return data.getSANMoves();
+        return data.getSanMoves();
     }
 
     /**
      * @return List of UCI moves
      */
     public LinkedList<String> getUCIMoves() {
-        return data.getUCIMoves();
+        return data.getUciMoves();
     }
 
     /**
@@ -305,7 +288,7 @@ public class PGN implements Serializable {
     }
 
     public boolean isFENEmpty() {
-        return FEN.isEmpty();
+        return startingPosition.isEmpty();
     }
 
 }

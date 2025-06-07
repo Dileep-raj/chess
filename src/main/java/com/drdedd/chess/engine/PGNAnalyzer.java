@@ -1,6 +1,7 @@
 package com.drdedd.chess.engine;
 
 import com.drdedd.chess.api.data.AnalysisData;
+import com.drdedd.chess.api.data.AnalysisReport;
 import com.drdedd.chess.engine.stockfish.EngineLine;
 import com.drdedd.chess.engine.stockfish.Stockfish;
 import com.drdedd.chess.engine.stockfish.StockfishOption;
@@ -15,53 +16,51 @@ import com.drdedd.chess.misc.MiscMethods;
 import lombok.Getter;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 public class PGNAnalyzer {
     public static final int NO_LIMIT = -1, MAX_DEPTH = 30, MIN_DEPTH = 15;
-    public static final String KEY_NAME = "name", KEY_ACCURACY = "accuracy", KEY_GREAT = "great", KEY_INACCURACY = "inaccuracy", KEY_MISTAKE = "mistake", KEY_BLUNDER = "blunder", KEY_ACPL = "acpl";
+//    public static final String KEY_NAME = "name", KEY_ACCURACY = "accuracy", KEY_GREAT = "great", KEY_INACCURACY = "inaccuracy", KEY_MISTAKE = "mistake", KEY_BLUNDER = "blunder", KEY_ACPL = "acpl";
     private static final float blunderThreshold = 2.5f, mistakeThreshold = 1.2f, inaccuracyThreshold = 0.6f;
     private static final int greatMoveThreshold = 5, maxCP = 15300;
     private final ArrayList<Integer> winPercentage, accuracy;
-    private final ArrayList<String> evaluations;
+    private final ArrayList<String> evaluations, annotations;
+    private final int initialEvaluationTime, evaluationTime, evaluationDepth;
+    private double whiteCPLoss, blackCPLoss;
+    private int whiteGreatMoves, blackGreatMoves, whiteInaccuracies, blackInaccuracies, whiteMistakes, blackMistakes, whiteBlunders, blackBlunders, whiteCPMoves, blackCPMoves, totalWhiteMoves, totalBlackMoves;
+    private boolean startsWithWhite;
     private String pgnString;
     private Stockfish stockfish;
     private PGN pgn;
     private ArrayList<String> FENs;
     private PGNData pgnData;
-    @Getter
-    private final HashMap<String, Object> whiteReport;
-    @Getter
-    private final HashMap<String, Object> blackReport;
-    private final int initialEvaluationTime, evaluationTime, evaluationDepth, evaluationNodes;
     private ArrayList<String> moves;
-    private double whiteCPLoss, blackCPLoss;
-    private int whiteGreatMoves, blackGreatMoves, whiteInaccuracies, blackInaccuracies, whiteMistakes, blackMistakes, whiteBlunders, blackBlunders, whiteCPMoves, blackCPMoves, totalWhiteMoves, totalBlackMoves;
-    private boolean startsWithWhite;
+    @Getter
+    private AnalysisReport whiteReport, blackReport;
 
-    public PGNAnalyzer(int depth, int timeLimit, int nodesLimit) {
+    public PGNAnalyzer(int depth, int timeLimit) {
         initialEvaluationTime = 15000;
         evaluationDepth = depth < 0 ? MIN_DEPTH : Math.min(depth, MAX_DEPTH);
         evaluationTime = timeLimit;
-        evaluationNodes = nodesLimit;
 
         evaluations = new ArrayList<>();
+        annotations = new ArrayList<>();
         moves = new ArrayList<>();
         winPercentage = new ArrayList<>();
         accuracy = new ArrayList<>();
-        whiteReport = new HashMap<>();
-        blackReport = new HashMap<>();
+        whiteReport = new AnalysisReport();
+        blackReport = new AnalysisReport();
     }
 
-    public AnalysisData analyzePGN(String pgnContent) {
+    public AnalysisData analyzePGN(String pgnContent, boolean includeFENs) {
         System.out.println("Analyzing PGN:");
         System.out.printf("%n%s%n%n", pgnContent);
         evaluations.clear();
+        annotations.clear();
         winPercentage.clear();
         accuracy.clear();
-        whiteReport.clear();
-        blackReport.clear();
+        whiteReport = new AnalysisReport();
+        blackReport = new AnalysisReport();
 
         AnalysisData data = new AnalysisData();
         data.setSuccess(false);
@@ -93,11 +92,15 @@ public class PGNAnalyzer {
 
             // Generate report
             computeReport();
+            data.setMessage("Analysis successful");
             data.setSuccess(true);
             data.setPgn(pgnString);
             data.setDepth(evaluationDepth);
             data.setWhiteAnalysis(whiteReport);
             data.setBlackAnalysis(blackReport);
+            data.setEvaluations(evaluations);
+            data.setAnnotations(annotations);
+            if (includeFENs) data.setFens(new ArrayList<>(parsedGame.getFENs()));
         } catch (Exception e) {
             System.err.println("Error while analyzing PGN!");
             e.printStackTrace(System.err);
@@ -116,28 +119,28 @@ public class PGNAnalyzer {
         whiteAccuracy = computeAverageAccuracy(true);
         blackAccuracy = computeAverageAccuracy(false);
 
-        whiteReport.put(KEY_NAME, whiteName);
-        whiteReport.put(KEY_GREAT, whiteGreatMoves);
-        whiteReport.put(KEY_INACCURACY, whiteInaccuracies);
-        whiteReport.put(KEY_MISTAKE, whiteMistakes);
-        whiteReport.put(KEY_BLUNDER, whiteBlunders);
-        whiteReport.put(KEY_ACPL, whiteACPL);
-        whiteReport.put(KEY_ACCURACY, whiteAccuracy);
+        whiteReport.setName(whiteName);
+        whiteReport.setGreat(whiteGreatMoves);
+        whiteReport.setInaccuracy(whiteInaccuracies);
+        whiteReport.setMistake(whiteMistakes);
+        whiteReport.setBlunder(whiteBlunders);
+        whiteReport.setAcpl((int) whiteACPL);
+        whiteReport.setAccuracy((int) whiteAccuracy);
 
-        blackReport.put(KEY_NAME, blackName);
-        blackReport.put(KEY_GREAT, blackGreatMoves);
-        blackReport.put(KEY_INACCURACY, blackInaccuracies);
-        blackReport.put(KEY_MISTAKE, blackMistakes);
-        blackReport.put(KEY_BLUNDER, blackBlunders);
-        blackReport.put(KEY_ACPL, blackACPL);
-        blackReport.put(KEY_ACCURACY, blackAccuracy);
+        blackReport.setName(blackName);
+        blackReport.setGreat(blackGreatMoves);
+        blackReport.setInaccuracy(blackInaccuracies);
+        blackReport.setMistake(blackMistakes);
+        blackReport.setBlunder(blackBlunders);
+        blackReport.setAcpl((int) blackACPL);
+        blackReport.setAccuracy((int) blackAccuracy);
     }
 
     /**
      * Analyzes the parsed PGN with each move and generate game report
      */
     private void analyze() {
-        System.out.printf("%nAnalyzing with depth: %s, time: %s & nodes: %s%n", evaluationDepth == -1 ? "?" : evaluationDepth, evaluationTime == -1 ? "?" : evaluationTime + " ms", evaluationNodes == -1 ? "?" : evaluationNodes);
+        System.out.printf("%nAnalyzing with depth: %s, time: %s%n", evaluationDepth == -1 ? "?" : evaluationDepth, evaluationTime == -1 ? "?" : evaluationTime + " ms");
         boolean whiteToMove = startsWithWhite;
         long start, end;
         whiteCPLoss = blackCPLoss = whiteCPMoves = blackCPMoves = totalWhiteMoves = totalBlackMoves = 0;
@@ -150,9 +153,11 @@ public class PGNAnalyzer {
             FEN = FENs.getFirst();
             stockfish.setOption(StockfishOption.optionMultiPV, "2");
 
-            currentLines = stockfish.getEngineLines(FEN, "", initialEvaluationTime, evaluationDepth, evaluationNodes);
+            // Initial evaluation
+            currentLines = stockfish.getEngineLines(FEN, "", initialEvaluationTime, evaluationDepth, NO_LIMIT);
 
             evaluations.add(currentLines.getFirst().getEval());
+            annotations.add("");
             winPercentage.add(computeWinPercent(currentLines.getFirst().getScore(), whiteToMove));
 
             System.out.println("Initial eval: " + evaluations.getFirst());
@@ -170,7 +175,7 @@ public class PGNAnalyzer {
                     throw new Exception("Invalid UCI move: %s, Move no: %d, Position: %s".formatted(move, (i - 1) / 2, FEN));
 
                 previousLines = currentLines;
-                currentLines = stockfish.getEngineLines(FEN, move, evaluationTime, evaluationDepth, evaluationNodes);
+                currentLines = stockfish.getEngineLines(FEN, move, evaluationTime, evaluationDepth, NO_LIMIT);
 
                 evaluations.add(currentLines.getFirst().getEval());
 
@@ -181,7 +186,7 @@ public class PGNAnalyzer {
                 accuracy.add(acc);
 
                 FEN = stockfish.getFEN();
-                System.out.printf("Move %3d: %-5s eval: %-8s depth %3s %8sn/s%n", (i - 1) / 2 + 1, move, currentLines.getFirst().getEval(), currentLines.getFirst().getDepth(), MiscMethods.convertNumber(Long.parseLong(currentLines.getFirst().getNodesPerSecond())));
+                System.out.printf("Move %3d: %-5s eval: %-8s depth %3s %8sn/s%n", (i - 1) / 2 + 1, move, currentLines.getFirst().getEval(), currentLines.getFirst().getDepth(), MiscMethods.convertNumber(Long.parseLong(currentLines.getFirst().getNps())));
 
                 whiteToMove = !whiteToMove;
 
@@ -189,12 +194,14 @@ public class PGNAnalyzer {
                 else totalBlackMoves++;
                 currentEvaluation = evaluations.get(i);
                 ChessAnnotation chessAnnotation = getAnnotation(move, previousLines, previousEvaluation, currentEvaluation, whitesMove);
-                if (chessAnnotation != null) pgnData.addAnnotation(i - 1, chessAnnotation);
+                if (chessAnnotation != null) {
+                    pgnData.addAnnotation(i - 1, chessAnnotation);
+                    annotations.add(chessAnnotation.name().toLowerCase());
+                } else annotations.add("");
                 pgnData.addComment(i - 1, "{ [%%eval %s] }".formatted(evaluations.get(i)));
                 whitesMove = !whitesMove;
                 previousEvaluation = currentEvaluation;
             }
-//            pgn.setMoveAnnotationMap(moveAnnotationMap);
             end = System.nanoTime();
             Log.printTime("analyzing PGN", end - start);
         } catch (Exception e) {
@@ -296,7 +303,7 @@ public class PGNAnalyzer {
 
     private boolean isGreatMove(String move, ArrayList<EngineLine> engineLines, boolean whitesMove) {
         if (engineLines.get(1).getEval() == null) return false;
-        return move.equals(engineLines.getFirst().getBestMove()) && scoreDifference(engineLines.getFirst().getEval(), engineLines.get(1).getEval(), whitesMove) > greatMoveThreshold;
+        return move.equals(engineLines.getFirst().getBestmove()) && scoreDifference(engineLines.getFirst().getEval(), engineLines.get(1).getEval(), whitesMove) > greatMoveThreshold;
     }
 
     private double scoreDifference(String score1, String score2, boolean whitesMove) {
@@ -354,9 +361,3 @@ public class PGNAnalyzer {
     }
 
 }
-//curl --location 'localhost:8080/api/analysis' \
-//--header 'Accept: application/json' \
-//--header 'Content-Type: application/json' \
-//--data '{
-//    "pgn":"1.e3 a5 2.Qh5 Ra6 3.Qxa5 h5 4.Qxc7 Rah6 5.h4 f6 6.Qxd7+ Kf7 7.Qxb7 Qd3 8.Qxb8 Qh7 9.Qxc8 Kg6 10.Qe6"
-//}'

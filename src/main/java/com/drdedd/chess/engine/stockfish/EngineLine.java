@@ -9,38 +9,24 @@ import java.util.*;
  */
 public class EngineLine {
 
-    public static final String infoDepth = "depth", infoVariation = "multipv", infoSeldepth = "seldepth";
-    public static final String infoScore = "score", infoNodes = "nodes", infoNodesPerSecond = "nps";
-    public static final String infoHashfull = "hashfull", infoTableHits = "tbhits", infoTime = "time";
-    public static final String infoPrimaryVariation = "pv", infoBestMove = "bestmove", infoPonder = "ponder", infoEval = "eval";
-    public static final String whiteWon = "1-0", blackWon = "0-1", draw = "1/2-1/2";
+    public static final String INFO_DEPTH = "depth", INFO_VARIATION = "multipv", INFO_SELDEPTH = "seldepth";
+    public static final String INFO_SCORE = "score", INFO_NODES = "nodes", INFO_NODES_PER_SECOND = "nps";
+    public static final String INFO_HASHFULL = "hashfull", INFO_TABLE_HITS = "tbhits", INFO_TIME = "time";
+    public static final String INFO_PRIMARY_VARIATION = "pv", INFO_BEST_MOVE = "bestmove", INFO_PONDER = "ponder", INFO_EVAL = "eval";
+    public static final String WHITE_WON = "1-0", BLACK_WON = "0-1", DRAW = "1/2-1/2";
     @Getter
-    private static final HashSet<String> infoParameters = new HashSet<>(Set.of(infoDepth, infoVariation, infoScore, infoTime, infoNodes, infoNodesPerSecond, infoPonder, infoPrimaryVariation, infoSeldepth, infoTableHits, infoHashfull, infoBestMove, infoEval));
+    private static final HashSet<String> infoParameters = new HashSet<>(Set.of(INFO_DEPTH, INFO_VARIATION, INFO_SCORE, INFO_TIME, INFO_NODES, INFO_NODES_PER_SECOND, INFO_PONDER, INFO_PRIMARY_VARIATION, INFO_SELDEPTH, INFO_TABLE_HITS, INFO_HASHFULL, INFO_BEST_MOVE, INFO_EVAL));
 
-    private String pv;
     @Getter
-    private String depth;
-    @Getter
-    private String variation;
-    private String seldepth;
-    @Getter
-    private String score;
-    private String nodes;
-    private String nps;
-    private String hashfull;
-    private String tbhits;
-    private String time;
-    private String bestmove;
-    @Getter
-    private String ponder;
-    @Getter
-    private String eval;
+    private String line, pv, depth, variation, seldepth, score, nodes, nps, hashfull, tbhits, time, bestmove, ponder, eval;
     public ArrayList<String> moves;
 
     EngineLine(String line, boolean whiteToPlay, boolean gameOver) {
         moves = new ArrayList<>();
 
         if (line == null) return;
+
+        this.line = line;
 
         Scanner reader = new Scanner(line);
         reader.next(); //Skip the first word
@@ -51,16 +37,16 @@ public class EngineLine {
             if (infoParameters.contains(word)) {
                 value = valueBuilder.toString().trim();
                 switch (parameter) {
-                    case infoDepth -> depth = value;
-                    case infoVariation -> variation = value;
-                    case infoSeldepth -> seldepth = value;
-                    case infoScore -> score = value;
-                    case infoNodes -> nodes = value;
-                    case infoNodesPerSecond -> nps = value;
-                    case infoHashfull -> hashfull = value;
-                    case infoTableHits -> tbhits = value;
-                    case infoTime -> time = value;
-                    case infoPrimaryVariation -> pv = value;
+                    case INFO_DEPTH -> depth = value;
+                    case INFO_VARIATION -> variation = value;
+                    case INFO_SELDEPTH -> seldepth = value;
+                    case INFO_SCORE -> score = value;
+                    case INFO_NODES -> nodes = value;
+                    case INFO_NODES_PER_SECOND -> nps = value;
+                    case INFO_HASHFULL -> hashfull = value;
+                    case INFO_TABLE_HITS -> tbhits = value;
+                    case INFO_TIME -> time = value;
+                    case INFO_PRIMARY_VARIATION -> pv = value;
                 }
                 parameter = word;
                 valueBuilder = new StringBuilder();
@@ -69,16 +55,16 @@ public class EngineLine {
 
         value = valueBuilder.toString().trim();
         switch (parameter) {
-            case infoDepth -> depth = value;
-            case infoVariation -> variation = value;
-            case infoSeldepth -> seldepth = value;
-            case infoScore -> score = value;
-            case infoNodes -> nodes = value;
-            case infoNodesPerSecond -> nps = value;
-            case infoHashfull -> hashfull = value;
-            case infoTableHits -> tbhits = value;
-            case infoTime -> time = value;
-            case infoPrimaryVariation -> pv = value;
+            case INFO_DEPTH -> depth = value;
+            case INFO_VARIATION -> variation = value;
+            case INFO_SELDEPTH -> seldepth = value;
+            case INFO_SCORE -> score = value;
+            case INFO_NODES -> nodes = value;
+            case INFO_NODES_PER_SECOND -> nps = value;
+            case INFO_HASHFULL -> hashfull = value;
+            case INFO_TABLE_HITS -> tbhits = value;
+            case INFO_TIME -> time = value;
+            case INFO_PRIMARY_VARIATION -> pv = value;
         }
 
         if (pv != null && !pv.isEmpty()) {
@@ -102,22 +88,14 @@ public class EngineLine {
     private static String parseScore(String score, boolean whiteToPlay, boolean gameOver) {
         String[] split = score.split(" ");
         if (gameOver) {
-            if (split[0].equals("cp")) return draw;
-            else if (split[0].equals("mate")) return whiteToPlay ? blackWon : whiteWon;
+            if (split[0].equals("cp")) return DRAW;
+            else if (split[0].equals("mate")) return whiteToPlay ? BLACK_WON : WHITE_WON;
         }
         int no = Integer.parseInt(split[1]);
         if (!whiteToPlay) no = -no;
         String prefix = no == 0 ? "" : no > 0 ? "+" : "-";
         if (split[0].equals("mate")) return prefix + "M" + Math.abs(no);
         return prefix + Math.abs((float) no / 100);
-    }
-
-    public String getNodesPerSecond() {
-        return nps;
-    }
-
-    public String getBestMove() {
-        return bestmove;
     }
 
     private void build(StringBuilder s, String name, String value) {
@@ -129,10 +107,10 @@ public class EngineLine {
         if (variation == null) return eval;
         StringBuilder s = new StringBuilder();
         build(s, "Variation", variation + ", ");
-        build(s, infoDepth, depth + ", ");
-        build(s, infoEval, eval + '\n');
-        build(s, infoBestMove, bestmove + ", ");
-        build(s, infoPonder, ponder);
+        build(s, INFO_DEPTH, depth + ", ");
+        build(s, INFO_EVAL, eval + '\n');
+        build(s, INFO_BEST_MOVE, bestmove + ", ");
+        build(s, INFO_PONDER, ponder);
         build(s, "\nMoves", moves.toString());
         return s.toString();
     }
@@ -143,10 +121,10 @@ public class EngineLine {
         if (variation == null) return eval;
         StringBuilder stringBuilder = new StringBuilder();
         build(stringBuilder, "Variation", variation + ", ");
-        build(stringBuilder, infoDepth, depth + ", ");
-        build(stringBuilder, infoEval, eval + '\n');
-        build(stringBuilder, infoBestMove, bestmove + ", ");
-        build(stringBuilder, infoPonder, ponder);
+        build(stringBuilder, INFO_DEPTH, depth + ", ");
+        build(stringBuilder, INFO_EVAL, eval + '\n');
+        build(stringBuilder, INFO_BEST_MOVE, bestmove + ", ");
+        build(stringBuilder, INFO_PONDER, ponder);
         return stringBuilder.toString();
     }
 }

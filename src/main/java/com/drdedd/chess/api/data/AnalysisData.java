@@ -1,15 +1,20 @@
 package com.drdedd.chess.api.data;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 
+/**
+ * Chess game analysis data
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@EqualsAndHashCode(callSuper = true)
 @Data
-public class AnalysisData {
-    boolean success;
+public class AnalysisData extends ResponseData {
     int depth;
-    String engine;
-    String pgn;
-    HashMap<String, Object> whiteAnalysis;
-    HashMap<String, Object> blackAnalysis;
+    String engine, pgn;
+    AnalysisReport whiteAnalysis, blackAnalysis;
+    ArrayList<String> fens, evaluations, annotations;
 }

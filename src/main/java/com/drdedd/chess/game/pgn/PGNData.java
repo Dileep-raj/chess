@@ -1,6 +1,5 @@
 package com.drdedd.chess.game.pgn;
 
-
 import com.drdedd.chess.game.gameData.ChessAnnotation;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,20 +10,17 @@ import java.util.LinkedList;
 import java.util.Set;
 
 public class PGNData implements Serializable {
-    private final LinkedList<String> sanMoves, uciMoves;
     @Getter
-    @Setter
-    private LinkedList<String> tempMoves;
+    private final LinkedList<String> sanMoves, uciMoves;
     @Getter
     private final LinkedHashMap<String, String> tagsMap;
     @Getter
-    private final LinkedHashMap<Integer, String> evalMap;
-    @Getter
-    private final LinkedHashMap<Integer, String> commentsMap;
-    @Getter
-    private final LinkedHashMap<Integer, String> alternateMoveSequence;
+    private final LinkedHashMap<Integer, String> evalMap, commentsMap, alternateMoveSequence;
     @Getter
     private final LinkedHashMap<Integer, ChessAnnotation> annotationMap;
+    @Getter
+    @Setter
+    private LinkedList<String> tempMoves;
 
     public PGNData() {
         sanMoves = new LinkedList<>();
@@ -46,14 +42,6 @@ public class PGNData implements Serializable {
         this.alternateMoveSequence = alternateMoveSequence;
         this.evalMap = evalMap;
         tempMoves = new LinkedList<>();
-    }
-
-    public LinkedList<String> getSANMoves() {
-        return sanMoves;
-    }
-
-    public LinkedList<String> getUCIMoves() {
-        return uciMoves;
     }
 
     public Set<String> getTags() {

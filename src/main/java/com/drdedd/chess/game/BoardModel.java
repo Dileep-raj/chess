@@ -1,6 +1,5 @@
 package com.drdedd.chess.game;
 
-
 import com.drdedd.chess.game.data.Regexes;
 import com.drdedd.chess.game.gameData.Player;
 import com.drdedd.chess.game.gameData.Rank;
@@ -29,9 +28,7 @@ public class BoardModel implements Serializable, Cloneable {
     public Pawn enPassantPawn = null;
     public String enPassantSquare = "", fromSquare = "", toSquare = "";
     @Getter
-    private int halfMove;
-    @Getter
-    private int fullMove;
+    private int halfMove, fullMove;
 
     public BoardModel(boolean initializeBoard) {
         Player.WHITE.setInCheck(false);

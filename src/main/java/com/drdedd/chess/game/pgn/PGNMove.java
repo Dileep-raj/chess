@@ -13,13 +13,13 @@ public class PGNMove {
     private ArrayList<String> al, cs;
 
     /**
-     * @param moveNumber     Half move number/ply number
-     * @param san            Move in SAN notation
-     * @param uci            Move in UCI notation
-     * @param eval           Eval of the position
-     * @param chessAnnotation     Annotation of the move
-     * @param alternateMoves Alternate move sequences
-     * @param comments       Comments on the move
+     * @param moveNumber      Half move number/ply number
+     * @param san             Move in SAN notation
+     * @param uci             Move in UCI notation
+     * @param eval            Eval of the position
+     * @param chessAnnotation Annotation of the move
+     * @param alternateMoves  Alternate move sequences
+     * @param comments        Comments on the move
      */
     public PGNMove(int moveNumber, String san, String uci, String eval, ChessAnnotation chessAnnotation, ArrayList<String> alternateMoves, ArrayList<String> comments) {
         n = moveNumber;

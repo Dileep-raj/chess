@@ -13,6 +13,7 @@ import com.drdedd.chess.game.pieces.Pawn;
 import com.drdedd.chess.game.pieces.Piece;
 import com.drdedd.chess.misc.Log;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -42,6 +43,7 @@ public class GameLogic implements GameLogicInterface {
     private Stack<BoardModel> boardModelStack;
     @Getter
     private Stack<String> FENs;
+    @Setter
     private Player playAs;
     private HashMap<String, HashSet<Integer>> allLegalMoves;
     private Thread randomMoveThread;
@@ -459,7 +461,7 @@ public class GameLogic implements GameLogicInterface {
         }
 //            else addToPGN(promotedPiece, PGN.PROMOTE, fromRow, fromCol);
         addMove(sanMove, uciMove);
-//           // Log.v(TAG, String.format("promote: Promoted to %s %s->%s", rank, toNotation(fromRow, fromCol), toNotation(row, col)));
+        // Log.v(TAG, String.format("promote: Promoted to %s, %s->%s", rank, toNotation(fromRow, fromCol), toNotation(row, col)));
         fromSquare = toNotation(fromRow, fromCol);
         toSquare = toNotation(row, col);
 
@@ -538,7 +540,7 @@ public class GameLogic implements GameLogicInterface {
             FENs.pop();
             boardModel = boardModelStack.peek().clone();
             if (boardModel.enPassantPawn != null) {
-                //System.out.print(TAG + "undoLastMove: EnPassantPawn: " + boardModel.enPassantPawn.getPosition() + " EnPassantSquare: " + boardModel.enPassantSquare);
+                //Log.d(TAG, "undoLastMove: EnPassantPawn: " + boardModel.enPassantPawn.getPosition() + " EnPassantSquare: " + boardModel.enPassantSquare);
             }
             toggleGameState();
             updateAll();
@@ -558,7 +560,7 @@ public class GameLogic implements GameLogicInterface {
         isChecked();
 //        printTime("updating LegalMoves", end - start);
         checkGameTermination();
-//        System.out.println(TAG + "updateAll: Updated game");
+//        Log.d(TAG, "updateAll: Updated game");
         if (gameUI != null) gameUI.updateViews();
         if (!gameTerminated) {
             randomMoveThread = null;
@@ -591,7 +593,7 @@ public class GameLogic implements GameLogicInterface {
         }
 //        }
         if (noLegalMoves()) {
-            //System.out.print(TAG + "checkGameTermination: No Legal Moves for: " + playerToPlay());
+            //Log.d(TAG, "checkGameTermination: No Legal Moves for: " + playerToPlay());
             isChecked();
 
             if (!playerToPlay().isInCheck()) {
@@ -678,12 +680,12 @@ public class GameLogic implements GameLogicInterface {
         String lastPosition = positions[l - 1];
         for (i = 0; i < l - 2; i++)
             if (lastPosition.equals(positions[i])) {
-                //System.out.print(TAG + String.format("drawByRepetition: One repetition found:\n%d: %s\n%d: %s", i / 2 + 1, positions[i], (l - 1) / 2 + 1, lastPosition));
+                //Log.d(TAG, String.format("drawByRepetition: One repetition found:\n%d: %s\n%d: %s", i / 2 + 1, positions[i], (l - 1) / 2 + 1, lastPosition));
                 for (j = i + 1; j < l - 1; j++)
                     if (positions[i].equals(positions[j])) {
-                        //System.out.print(TAG + "Draw by repetition");
-                        //System.out.print(TAG + String.format("Position : %d, %d & %d", i / 2 + 1, j / 2 + 1, (l - 1) / 2 + 1));
-                        //System.out.print(TAG + String.format("Repeated moves FEN:\n%d - %s\n%d - %s\n%d - %s", i / 2 + 1, positions[i], j / 2 + 1, positions[j], (l - 1) / 2 + 1, lastPosition));
+                        //Log.d(TAG, "Draw by repetition");
+                        //Log.d(TAG, String.format("Position : %d, %d & %d", i / 2 + 1, j / 2 + 1, (l - 1) / 2 + 1));
+                        //Log.d(TAG, String.format("Repeated moves FEN:\n%d - %s\n%d - %s\n%d - %s", i / 2 + 1, positions[i], j / 2 + 1, positions[j], (l - 1) / 2 + 1, lastPosition));
                         return true;
                     }
                 positions[i] = "";
@@ -703,12 +705,12 @@ public class GameLogic implements GameLogicInterface {
         if (whiteKing.isChecked(this)) {
             isChecked = true;
             Player.WHITE.setInCheck(true);
-            //System.out.print(TAG + "isChecked: White King checked");
+            //Log.d(TAG, "isChecked: White King checked");
         }
         if (blackKing.isChecked(this)) {
             isChecked = true;
             Player.BLACK.setInCheck(true);
-            //System.out.print(TAG + "isChecked: Black King checked");
+            //Log.d(TAG, "isChecked: Black King checked");
         }
     }
 
@@ -725,7 +727,7 @@ public class GameLogic implements GameLogicInterface {
                 StringBuilder allMoves = new StringBuilder();
                 for (int move : moves)
                     allMoves.append(toNotation(move)).append(" ");
-                //System.out.print(TAG + "printLegalMoves: Legal Moves for " + square.getPosition() + ": " + allMoves);
+                Log.d(TAG, "printLegalMoves: Legal Moves for " + square + ": " + allMoves);
             }
 //            else //System.out.println(TAG+ "printLegalMoves: No legal moves for " + square);
         }
@@ -877,10 +879,6 @@ public class GameLogic implements GameLogicInterface {
         return "" + (char) ('a' + col) + (row + 1);
     }
 
-    public void setPlayAs(Player playAs) {
-        this.playAs = playAs;
-    }
-
     public void playRandomGame() {
         while (!gameTerminated) playRandomMove();
     }
@@ -901,7 +899,7 @@ public class GameLogic implements GameLogicInterface {
         public boolean move(int fromRow, int fromCol, int toRow, int toCol) {
             Piece opponentPiece = pieceAt(toRow, toCol), movingPiece = pieceAt(fromRow, fromCol);
             if (movingPiece != null) movingPiece.moveTo(toRow, toCol);
-            else System.out.println(TAG + " move: Error! movingPiece is null");
+            else Log.d(TAG, " move: Error! movingPiece is null");
             if (opponentPiece != null) tempBoardModel.capturePiece(opponentPiece);
             return true;
         }

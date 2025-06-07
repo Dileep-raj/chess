@@ -1,6 +1,5 @@
 package com.drdedd.chess.game.pgn;
 
-
 import com.drdedd.chess.game.GameLogic;
 import com.drdedd.chess.game.Openings;
 import com.drdedd.chess.game.ParsedGame;
@@ -23,7 +22,7 @@ import java.util.regex.Pattern;
  * PGN parser to validate PGN moves and convert to game objects
  */
 public class PGNParser extends Thread {
-    private static final String TAG = "PGNParser", dialogTitle = "Loading PGN";
+    private static final String TAG = "PGNParser";
     private final LinkedList<String> invalidWords;
     private final String pgnContent;
     private final PGNData pgnData;
@@ -47,8 +46,8 @@ public class PGNParser extends Thread {
     }
 
     public void parse() {
-        boolean lichess, readResult;
-        long start = 0, end = 0;
+        boolean readResult;
+        long start, end;
 
         start = System.nanoTime();
         readResult = readPGN();
@@ -56,7 +55,7 @@ public class PGNParser extends Thread {
 
         if (readResult) {
             Log.printTime(TAG + " Reading PGN", end - start);
-            System.out.println(TAG + " run: No syntax errors in PGN");
+            Log.d(TAG, " run: No syntax errors in PGN");
 
             gameLogic = new GameLogic(pgnData);
 
@@ -65,8 +64,8 @@ public class PGNParser extends Thread {
             end = System.nanoTime();
 
             if (parseResult) {
-                System.out.println(TAG + String.format("run: Time to Parse: %,3d ns", end - start));
-                System.out.println(TAG + String.format("run: Game valid and parsed!%nFinal position:%s", gameLogic.getBoardModel()));
+                Log.d(TAG, String.format(" run: Time to Parse: %,3d ns", end - start));
+                Log.d(TAG, String.format(" run: Game valid and parsed!%nFinal position:%s", gameLogic.getBoardModel()));
 
                 String opening, eco;
                 if (gameLogic.getPGN().isFENEmpty()) {
@@ -78,7 +77,7 @@ public class PGNParser extends Thread {
                     String[] split = openingResult.split(Openings.separator);
                     int lastBookMove = Integer.parseInt(split[0]);
                     if (lastBookMove != -1 && split.length == 3) {
-                        Log.printTime(TAG + "searching opening", end - start);
+                        Log.printTime(TAG + " searching opening", end - start);
                         eco = split[1];
                         opening = split[2];
                         gameLogic.getPGN().setLastBookMoveNo(lastBookMove);
@@ -88,14 +87,14 @@ public class PGNParser extends Thread {
                             gameLogic.getPGN().getPGNData().addAnnotation(i, ChessAnnotation.BOOK);
                     } else {
                         opening = eco = "";
-                        System.out.println(TAG + String.format("readPGN: Opening not found!\n%s\nMoves: %s", Arrays.toString(split), gameLogic.getPGN().getUCIMoves().subList(0, Math.min(gameLogic.getPGN().getUCIMoves().size(), 10))));
+                        Log.d(TAG, String.format(" readPGN: Opening not found!\n%s\nMoves: %s", Arrays.toString(split), gameLogic.getPGN().getUCIMoves().subList(0, Math.min(gameLogic.getPGN().getUCIMoves().size(), 10))));
                     }
                 } else opening = eco = "";
 
                 parsedGame = new ParsedGame(gameLogic.getBoardModelStack(), gameLogic.getFENs(), gameLogic.getPGN(), eco, opening);
-            } else System.out.println(TAG + " run: Game not parsed!");
+            } else Log.d(TAG, " run: Game not parsed!");
         }
-        System.out.println(TAG + " run: Total invalid words: " + invalidWords.size());
+        Log.d(TAG, " run: Total invalid words: " + invalidWords.size());
     }
 
     /**
@@ -113,8 +112,7 @@ public class PGNParser extends Thread {
         boolean foundMoves = startingMoveMatcher.find();
         if (!foundMoves) {
             String error = "No moves in PGN!";
-            System.out.println(TAG + String.format("readPGN: %s\n%s", error, pgnContent));
-//            data.putString(ERROR_KEY, error);
+            Log.d(TAG, String.format(" readPGN: %s\n%s", error, pgnContent));
             return false;
         }
 
@@ -185,7 +183,7 @@ public class PGNParser extends Thread {
             } catch (Exception e) {
                 e.printStackTrace(System.err);
                 String error = "Error at :" + word;
-                Log.e(TAG, "readPGN: " + error, e);
+                Log.e(TAG, " readPGN: " + error, e);
             }
         }
         return true;
@@ -207,7 +205,7 @@ public class PGNParser extends Thread {
 
         for (String move : moves) {
             move = move.trim();
-//            System.out.println(TAG + " parsePGN: Move: " + move);
+//            Log.d(TAG, " parsePGN: Move: " + move);
             startRow = -1;
             startCol = -1;
             destRow = -1;
@@ -274,7 +272,7 @@ public class PGNParser extends Thread {
                         case '=':
                             promotion = true;
                             ch = move.charAt(i + 1);
-                            System.out.println(TAG + " parsePGN: Promotion");
+                            Log.d(TAG, " parsePGN: Promotion");
                             switch (ch) {
                                 case 'Q':
                                     promotionRank = Rank.QUEEN;
@@ -289,7 +287,7 @@ public class PGNParser extends Thread {
                                     promotionRank = Rank.BISHOP;
                                     break;
                             }
-                            System.out.println(TAG + " parsePGN: Promotion rank: " + promotionRank);
+                            Log.d(TAG, " parsePGN: Promotion rank: " + promotionRank);
                             if (promotionRank == null) return false;
                             break label;
 
@@ -299,7 +297,7 @@ public class PGNParser extends Thread {
                         case 'B':
                             if (destCol != -1 && destRow != -1) {
                                 promotion = true;
-                                System.out.println(TAG + " parsePGN: Promotion");
+                                Log.d(TAG, " parsePGN: Promotion");
                                 switch (ch) {
                                     case 'Q':
                                         promotionRank = Rank.QUEEN;
@@ -314,7 +312,7 @@ public class PGNParser extends Thread {
                                         promotionRank = Rank.BISHOP;
                                         break;
                                 }
-                                System.out.println(TAG + " parsePGN: Promotion rank: " + promotionRank);
+                                Log.d(TAG, " parsePGN: Promotion rank: " + promotionRank);
                                 break label;
                             }
 
@@ -329,33 +327,33 @@ public class PGNParser extends Thread {
 
                 if (startRow != -1 && startCol != -1) {
                     piece = gameLogic.getBoardModel().pieceAt(startRow, startCol);
-                    System.out.println(TAG + String.format("parsePGN: piece at %s piece: %s", MiscMethods.toNotation(startRow, startCol), piece));
+                    Log.d(TAG, String.format(" parsePGN: piece at %s piece: %s", MiscMethods.toNotation(startRow, startCol), piece));
                 } else if (startCol != -1) {
                     piece = gameLogic.getBoardModel().searchCol(gameLogic, player, rank, startCol, destRow, destCol);
-                    System.out.println(TAG + String.format("parsePGN: searched col: %d piece:%s", startCol, piece));
+                    Log.d(TAG, String.format(" parsePGN: searched col: %d piece:%s", startCol, piece));
                 } else if (startRow != -1) {
                     piece = gameLogic.getBoardModel().searchRow(gameLogic, player, rank, startRow, destRow, destCol);
-                    System.out.println(TAG + String.format("parsePGN: searched row: %d piece: %s", startRow, piece));
+                    Log.d(TAG, String.format(" parsePGN: searched row: %d piece: %s", startRow, piece));
                 }
 
                 if (piece == null) {
                     piece = gameLogic.getBoardModel().searchPiece(gameLogic, player, rank, destRow, destCol);
-                    System.out.println(TAG + " parsePGN: piece searched");
+                    Log.d(TAG, " parsePGN: piece searched");
                 }
 
                 if (piece != null && promotion) {
                     Pawn pawn = (Pawn) piece;
                     if (gameLogic.promote(pawn, destRow, destCol, pawn.getRow(), pawn.getCol(), promotionRank)) {
-                        System.out.println(TAG + String.format("parsePGN: Promoted to %s at %s", promotionRank, MiscMethods.toNotation(destRow, destCol)));
+                        Log.d(TAG, String.format(" parsePGN: Promoted to %s at %s", promotionRank, MiscMethods.toNotation(destRow, destCol)));
                         continue;
                     }
                 }
 
                 if (piece != null) {
                     if (gameLogic.move(piece.getRow(), piece.getCol(), destRow, destCol)) {
-                        System.out.println(TAG + String.format("parsePGN: Move success %s", move));
+                        Log.d(TAG, String.format(" parsePGN: Move success %s", move));
                     } else {
-                        System.out.println(TAG + " parsePGN: Second search!");
+                        Log.d(TAG, " parsePGN: Second search!");
                         LinkedHashSet<Piece> pieces = gameLogic.getBoardModel().pieces, tempPieces = new LinkedHashSet<>();
                         for (Piece tempPiece : pieces)
                             if (tempPiece.getPlayer() == player && tempPiece.getRank() == rank) {
@@ -372,24 +370,22 @@ public class PGNParser extends Thread {
                             }
 
                         if (gameLogic.move(piece.getRow(), piece.getCol(), destRow, destCol)) {
-                            System.out.println(TAG + " parsePGN: Move success after 2nd search! " + move);
+                            Log.d(TAG, " parsePGN: Move success after 2nd search! " + move);
                         } else {
                             StringBuilder legalMoves = new StringBuilder();
                             HashSet<Integer> pieceLegalMoves = gameLogic.getAllLegalMoves().get(piece.getSquare());
                             if (pieceLegalMoves != null) for (int legalMove : pieceLegalMoves)
                                 legalMoves.append(MiscMethods.toNotation(legalMove)).append(' ');
-                            System.err.println(TAG + " " + String.format("parsePGN: Move failed: %s%nPiece: %s%nLegalMoves: %s", move, piece, legalMoves));
+                            System.err.println(TAG + String.format(" parsePGN: Move failed: %s%nPiece: %s%nLegalMoves: %s", move, piece, legalMoves));
                             return false;
                         }
                     }
                 } else {
-                    System.out.println(TAG + String.format("parsePGN: Move invalid! Piece not found! %s %s (%d,%d) -> %s move: %s", player, rank, startRow, startCol, MiscMethods.toNotation(destRow, destCol), move));
-//                    Toast.makeText(context, "Invalid move " + move, Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, String.format(" parsePGN: Move invalid! Piece not found! %s %s (%d,%d) -> %s move: %s", player, rank, startRow, startCol, MiscMethods.toNotation(destRow, destCol), move));
                     return false;
                 }
             } catch (Exception e) {
-//                Toast.makeText(context, "Error occurred after move " + move, Toast.LENGTH_LONG).show();
-                Log.e(TAG, "parsePGN: Error occurred after move " + move, e);
+                Log.e(TAG, " parsePGN: Error occurred after move " + move, e);
                 return false;
             }
         }
@@ -398,7 +394,7 @@ public class PGNParser extends Thread {
         for (String tag : tags) {
             String value = pgnData.getTagOrDefault(tag, null);
             if (value != null && !value.isEmpty()) gameLogic.getPGN().addTag(tag, value);
-            System.out.println(TAG + String.format("parsePGN: Tag: [%s \"%s\"]", tag, value));
+            Log.d(TAG, String.format(" parsePGN: Tag: [%s \"%s\"]", tag, value));
         }
         return true;
     }
@@ -411,7 +407,6 @@ public class PGNParser extends Thread {
             movesBuilder.append(' ').append(word);
             if (word.endsWith(")")) break;
         }
-//        alternateMoveSequence.put(moveCount, movesBuilder.toString());
         pgnData.addAlternateMoveSequence(moveCount, movesBuilder.toString());
     }
 
@@ -435,7 +430,6 @@ public class PGNParser extends Thread {
             group = group.substring(group.indexOf(" "), group.length() - 1).trim();
             if (group.contains("-")) group = "-" + group.replace("-", "");
             else if (!group.contains("+")) group = "+" + group;
-//            evalMap.put(moveCount, group);
             pgnData.addEval(moveCount, group);
         }
     }
@@ -464,7 +458,7 @@ public class PGNParser extends Thread {
                     pgnData.addTag(tag, value);
                 }
             } catch (Exception e) {
-                Log.e(TAG, "readTags: Error at : " + word, e);
+                Log.e(TAG, " readTags: Error at : " + word, e);
             }
         }
     }

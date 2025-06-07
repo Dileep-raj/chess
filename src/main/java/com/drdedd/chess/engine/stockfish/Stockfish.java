@@ -4,7 +4,6 @@ import com.drdedd.chess.engine.HardwareInfo;
 import com.drdedd.chess.game.data.Regexes;
 import com.drdedd.chess.misc.MiscMethods;
 import lombok.Getter;
-import org.springframework.core.io.ClassPathResource;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -29,7 +28,6 @@ public class Stockfish {
     private static final char newLine = '\n';
     private static final int defaultMoveTime = 7500, defaultMoveDepth = 30;
     private static final int defaultHash = 256;
-//    private static final Log log = LogFactory.getLog(Stockfish.class);
 
     private Process stockfishEngine;
     private BufferedReader engineReader, errorReader;
@@ -92,14 +90,16 @@ public class Stockfish {
         variations = 1;
 
         System.out.println("\nEngine starting");
-
+        String path = String.format("src%smain%sresources%s%s", File.separator, File.separator, File.separator, hardwareInfo.getOSName().toLowerCase().contains("linux") ? enginePathUbuntu : enginePathWindows);
         try {
-            File file = new ClassPathResource(hardwareInfo.getOSName().toLowerCase().contains("linux") ? enginePathUbuntu : enginePathWindows).getFile();
+//            ClassPathResource classPathResource = new ClassPathResource(path);
+            System.out.println("Engine path: " + path);
+            File file = new File(path);
             if (!file.exists()) {
                 System.err.println("Stockfish engine not found!\n" + file.getAbsolutePath());
                 return;
             }
-            stockfishEngine = new ProcessBuilder(file.getPath()).start();
+            stockfishEngine = new ProcessBuilder(path).start();
         } catch (IOException e) {
             e.printStackTrace(System.err);
         }
