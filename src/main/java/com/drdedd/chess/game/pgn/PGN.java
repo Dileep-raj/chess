@@ -5,7 +5,6 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Set;
 
@@ -23,9 +22,8 @@ public class PGN implements Serializable {
     public static final String RESULT_DRAW = "1/2-1/2", RESULT_WHITE_WON = "1-0", RESULT_BLACK_WON = "0-1", RESULT_ONGOING = "*";
     public static final String TAG_APP = "App", TAG_WHITE = "White", TAG_DATE = "Date", TAG_BLACK = "Black", TAG_SET_UP = "SetUp", TAG_FEN = "FEN", TAG_RESULT = "Result", TAG_TERMINATION = "Termination";
     public static final String TAG_ECO = "ECO", TAG_OPENING = "Opening", TAG_WHITE_TITLE = "WhiteTitle", TAG_BLACK_TITLE = "BlackTitle", TAG_WHITE_ELO = "WhiteElo", TAG_BLACK_ELO = "BlackElo";
-    public static final String TAG_ANALYZED_BY = "AnalyzedBy", TAG_ANNOTATOR = "Annotator";
+    public static final String TAG_ANALYZED_BY = "AnalyzedBy", TAG_ANNOTATOR = "Annotator", UNKNOWN = "?";
     private final String startingPosition;
-    private final LinkedHashMap<String, String> allTags = new LinkedHashMap<>();
     /**
      * Termination message
      */
@@ -51,10 +49,11 @@ public class PGN implements Serializable {
      * @param whiteToPlay Player to play
      */
     public PGN(String app, String white, String black, String date, boolean whiteToPlay) {
-        allTags.put(TAG_APP, app);
-        allTags.put(TAG_WHITE, white);
-        allTags.put(TAG_BLACK, black);
-        allTags.put(TAG_DATE, date);
+        data = new PGNData();
+        data.addTag(TAG_APP, app);
+        data.addTag(TAG_WHITE, white);
+        data.addTag(TAG_BLACK, black);
+        data.addTag(TAG_DATE, date);
         this.whiteToPlay = whiteToPlay;
         startingPosition = "";
 //        moves.clear();
@@ -65,7 +64,6 @@ public class PGN implements Serializable {
 //        alternateMoveSequence = new LinkedHashMap<>();
 //        evalMap = new LinkedHashMap<>();
         lastBookMoveNo = -1;
-        data = new PGNData();
     }
 
     /**
@@ -77,10 +75,11 @@ public class PGN implements Serializable {
      * @param startingPosition Starting position of the game
      */
     public PGN(String app, String white, String black, String date, boolean whiteToPlay, String startingPosition) {
-        allTags.put(TAG_APP, app);
-        allTags.put(TAG_WHITE, white);
-        allTags.put(TAG_BLACK, black);
-        allTags.put(TAG_DATE, date);
+        data = new PGNData();
+        data.addTag(TAG_APP, app);
+        data.addTag(TAG_WHITE, white);
+        data.addTag(TAG_BLACK, black);
+        data.addTag(TAG_DATE, date);
         this.whiteToPlay = whiteToPlay;
         this.startingPosition = startingPosition;
 //        moves.clear();
@@ -91,7 +90,6 @@ public class PGN implements Serializable {
 //        alternateMoveSequence = new LinkedHashMap<>();
 //        evalMap = new LinkedHashMap<>();
         lastBookMoveNo = -1;
-        data = new PGNData();
     }
 
     /**
@@ -123,22 +121,22 @@ public class PGN implements Serializable {
      * @param black Name of black player
      */
     public void setWhiteBlack(String white, String black) {
-        allTags.put(TAG_WHITE, white);
-        allTags.put(TAG_BLACK, black);
+        data.addTag(TAG_WHITE, white);
+        data.addTag(TAG_BLACK, black);
     }
 
     /**
      * @return <code>String</code> - White player name
      */
     public String getWhite() {
-        return allTags.get(TAG_WHITE);
+        return data.getTag(TAG_WHITE, PGN.UNKNOWN);
     }
 
     /**
      * @return <code>String</code> - Black player name
      */
     public String getBlack() {
-        return allTags.get(TAG_BLACK);
+        return data.getTag(TAG_BLACK, PGN.UNKNOWN);
     }
 
     /**
@@ -156,20 +154,16 @@ public class PGN implements Serializable {
      *
      * @return String - PGN Tags text
      */
-    private String getTags() {
+    public String getTags() {
         StringBuilder tags = new StringBuilder();
-        allTags.put(TAG_RESULT, getResult());
-        if (!termination.isEmpty()) allTags.put(TAG_TERMINATION, termination);
+        data.addTag(TAG_RESULT, getResult());
+        if (!termination.isEmpty()) data.addTag(TAG_TERMINATION, termination);
         if (startingPosition != null && !startingPosition.isEmpty()) {
-            allTags.put(TAG_SET_UP, "1");
-            allTags.put(TAG_FEN, startingPosition);
+            data.addTag(TAG_SET_UP, "1");
+            data.addTag(TAG_FEN, startingPosition);
         }
-        Set<String> tagSet = allTags.keySet();
-        for (String tag : tagSet) {
-            String value = allTags.get(tag);
-            if (value == null || value.isEmpty()) value = "?";
-            tags.append(String.format("[%s \"%s\"]\n", tag, value));
-        }
+        Set<String> tagSet = data.getTagNames();
+        for (String tag : tagSet) tags.append(String.format("[%s \"%s\"]\n", tag, data.getTag(tag, PGN.UNKNOWN)));
         return tags.toString();
     }
 
@@ -179,7 +173,7 @@ public class PGN implements Serializable {
      * @return <code> * | 0-1 | 1-0 | 1/2-1/2 </code>
      */
     public String getResult() {
-        return allTags.getOrDefault(TAG_RESULT, "");
+        return data.getTag(TAG_RESULT, "");
     }
 
     /**
@@ -268,11 +262,11 @@ public class PGN implements Serializable {
      * @param value Tag value
      */
     public void addTag(String tag, String value) {
-        allTags.put(tag, value);
+        data.addTag(tag, value);
     }
 
     public void addAllTags(HashMap<String, String> tags) {
-        allTags.putAll(tags);
+        data.addTags(tags);
     }
 
     public void setPGNData(PGNData pgnData) {

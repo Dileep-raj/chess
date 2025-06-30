@@ -1,6 +1,5 @@
 package com.drdedd.chess.game.interfaces;
 
-
 import com.drdedd.chess.game.BoardModel;
 import com.drdedd.chess.game.gameData.Player;
 import com.drdedd.chess.game.pieces.Pawn;

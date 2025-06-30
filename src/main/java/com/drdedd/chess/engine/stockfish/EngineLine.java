@@ -117,14 +117,6 @@ public class EngineLine {
 
     @Override
     public String toString() {
-        if (depth == null) return "-";
-        if (variation == null) return eval;
-        StringBuilder stringBuilder = new StringBuilder();
-        build(stringBuilder, "Variation", variation + ", ");
-        build(stringBuilder, INFO_DEPTH, depth + ", ");
-        build(stringBuilder, INFO_EVAL, eval + '\n');
-        build(stringBuilder, INFO_BEST_MOVE, bestmove + ", ");
-        build(stringBuilder, INFO_PONDER, ponder);
-        return stringBuilder.toString();
+        return print();
     }
 }

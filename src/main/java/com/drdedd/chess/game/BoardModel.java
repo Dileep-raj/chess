@@ -4,7 +4,6 @@ import com.drdedd.chess.game.data.Regexes;
 import com.drdedd.chess.game.gameData.Player;
 import com.drdedd.chess.game.gameData.Rank;
 import com.drdedd.chess.game.gameData.Unicodes;
-import com.drdedd.chess.game.interfaces.GameLogicInterface;
 import com.drdedd.chess.game.pieces.*;
 import com.drdedd.chess.misc.MiscMethods;
 import lombok.Getter;
@@ -29,20 +28,22 @@ public class BoardModel implements Serializable, Cloneable {
     public String enPassantSquare = "", fromSquare = "", toSquare = "";
     @Getter
     private int halfMove, fullMove;
+    @Getter
+    private Player turn;
 
     public BoardModel(boolean initializeBoard) {
         Player.WHITE.setInCheck(false);
         Player.BLACK.setInCheck(false);
 
-        unicodes.put("QW", Unicodes.unicode_qw);
-        unicodes.put("RW", Unicodes.unicode_rw);
-        unicodes.put("BW", Unicodes.unicode_bw);
-        unicodes.put("NW", Unicodes.unicode_nw);
+        unicodes.put("QW", Unicodes.QW);
+        unicodes.put("RW", Unicodes.RW);
+        unicodes.put("BW", Unicodes.BW);
+        unicodes.put("NW", Unicodes.NW);
 
-        unicodes.put("QB", Unicodes.unicode_qb);
-        unicodes.put("RB", Unicodes.unicode_rb);
-        unicodes.put("BB", Unicodes.unicode_bb);
-        unicodes.put("NB", Unicodes.unicode_nb);
+        unicodes.put("QB", Unicodes.QB);
+        unicodes.put("RB", Unicodes.RB);
+        unicodes.put("BB", Unicodes.BB);
+        unicodes.put("NB", Unicodes.NB);
 
         if (initializeBoard) resetBoard();
 
@@ -64,32 +65,34 @@ public class BoardModel implements Serializable, Cloneable {
         int i;
         pieces.clear();
         for (i = 0; i <= 1; i++) {
-            addPiece(new Rook(Player.WHITE, 0, i * 7, -1, Unicodes.unicode_rw));
-            addPiece(new Knight(Player.WHITE, 0, 1 + i * 5, -1, Unicodes.unicode_nw));
-            addPiece(new Bishop(Player.WHITE, 0, 2 + i * 3, -1, Unicodes.unicode_bw));
+            addPiece(new Rook(Player.WHITE, 0, i * 7, Unicodes.RW));
+            addPiece(new Knight(Player.WHITE, 0, 1 + i * 5, Unicodes.NW));
+            addPiece(new Bishop(Player.WHITE, 0, 2 + i * 3, Unicodes.BW));
 
 
-            addPiece(new Rook(Player.BLACK, 7, i * 7, -1, Unicodes.unicode_rb));
-            addPiece(new Knight(Player.BLACK, 7, 1 + i * 5, -1, Unicodes.unicode_nb));
-            addPiece(new Bishop(Player.BLACK, 7, 2 + i * 3, -1, Unicodes.unicode_bb));
+            addPiece(new Rook(Player.BLACK, 7, i * 7, Unicodes.RB));
+            addPiece(new Knight(Player.BLACK, 7, 1 + i * 5, Unicodes.NB));
+            addPiece(new Bishop(Player.BLACK, 7, 2 + i * 3, Unicodes.BB));
 
         }
 
 //        King and Queen pieces
-        addPiece(new King(Player.WHITE, 0, 4, -1, Unicodes.unicode_kw));
-        addPiece(new Queen(Player.WHITE, 0, 3, -1, Unicodes.unicode_qw));
+        addPiece(new King(Player.WHITE, 0, 4, Unicodes.KW));
+        addPiece(new Queen(Player.WHITE, 0, 3, Unicodes.QW));
 
-        addPiece(new King(Player.BLACK, 7, 4, -1, Unicodes.unicode_kb));
-        addPiece(new Queen(Player.BLACK, 7, 3, -1, Unicodes.unicode_qb));
+        addPiece(new King(Player.BLACK, 7, 4, Unicodes.KB));
+        addPiece(new Queen(Player.BLACK, 7, 3, Unicodes.QB));
 
 //        Pawn pieces
         for (i = 0; i < 8; i++) {
-            addPiece(new Pawn(Player.WHITE, 1, i, -1, Unicodes.unicode_pw));
-            addPiece(new Pawn(Player.BLACK, 6, i, -1, Unicodes.unicode_pb));
+            addPiece(new Pawn(Player.WHITE, 1, i, Unicodes.PW));
+            addPiece(new Pawn(Player.BLACK, 6, i, Unicodes.PB));
         }
 
         halfMove = 0;
         fullMove = 1;
+
+        turn = Player.WHITE;
     }
 
     /**
@@ -135,64 +138,6 @@ public class BoardModel implements Serializable, Cloneable {
     }
 
     /**
-     * Search for piece from a specific row
-     *
-     * @param gameLogicInterface GameLogicInterface
-     * @param player             Player of the piece
-     * @param rank               Rank of the piece
-     * @param row                Row to be searched
-     * @param destRow            Destination row
-     * @param destCol            Destination column
-     * @return <code>Piece|null</code>
-     */
-    public Piece searchRow(GameLogicInterface gameLogicInterface, Player player, Rank rank, int row, int destRow, int destCol) {
-        for (Piece piece : pieces) {
-            if (piece.getPlayer() != player || piece.isCaptured()) continue;
-            if (piece.getRank() == rank && row == piece.getRow() && piece.canMoveTo(gameLogicInterface, destRow, destCol))
-                return piece;
-        }
-        return null;
-    }
-
-    /**
-     * Search for piece from a specific column
-     *
-     * @param gameLogicInterface GameLogicInterface
-     * @param player             Player of the piece
-     * @param rank               Rank of the piece
-     * @param col                Column to be searched
-     * @param destRow            Destination row
-     * @param destCol            Destination column
-     * @return <code>Piece|null</code>
-     */
-    public Piece searchCol(GameLogicInterface gameLogicInterface, Player player, Rank rank, int col, int destRow, int destCol) {
-        for (Piece piece : pieces) {
-            if (piece.getPlayer() != player || piece.isCaptured()) continue;
-            if (piece.getRank() == rank && col == piece.getCol() && piece.canMoveTo(gameLogicInterface, destRow, destCol))
-                return piece;
-        }
-        return null;
-    }
-
-    /**
-     * Search for piece from a specific position
-     *
-     * @param gameLogicInterface GameLogicInterface
-     * @param player             Player of the piece
-     * @param rank               Rank of the piece
-     * @param row                Row to be searched
-     * @param col                Col to be searched
-     * @return <code>Piece|null</code>
-     */
-    public Piece searchPiece(GameLogicInterface gameLogicInterface, Player player, Rank rank, int row, int col) {
-        for (Piece piece : pieces) {
-            if (piece.getPlayer() != player || piece.isCaptured()) continue;
-            if (piece.getRank() == rank && piece.canMoveTo(gameLogicInterface, row, col)) return piece;
-        }
-        return null;
-    }
-
-    /**
      * Captures the piece and removes it from board view
      *
      * @param piece <code>Piece</code> to be captured
@@ -222,19 +167,15 @@ public class BoardModel implements Serializable, Cloneable {
      */
     public Piece promote(Piece pawn, Rank rank, int row, int col) {
         Piece piece = null;
-        Integer queen = resIDs.get(pawn.getPlayer() + Rank.QUEEN.toString());
-        Integer rook = resIDs.get(pawn.getPlayer() + Rank.ROOK.toString());
-        Integer bishop = resIDs.get(pawn.getPlayer() + Rank.BISHOP.toString());
-        Integer knight = resIDs.get(pawn.getPlayer() + Rank.KNIGHT.toString());
 
-        if (rank == Rank.QUEEN && queen != null)
-            piece = new Queen(pawn.getPlayer(), row, col, queen, unicodes.get("Q" + pawn.getPlayer().toString().charAt(0)));
-        if (rank == Rank.ROOK && rook != null)
-            piece = new Rook(pawn.getPlayer(), row, col, rook, unicodes.get("R" + pawn.getPlayer().toString().charAt(0)));
-        if (rank == Rank.BISHOP && bishop != null)
-            piece = new Bishop(pawn.getPlayer(), row, col, bishop, unicodes.get("B" + pawn.getPlayer().toString().charAt(0)));
-        if (rank == Rank.KNIGHT && knight != null)
-            piece = new Knight(pawn.getPlayer(), row, col, knight, unicodes.get("N" + pawn.getPlayer().toString().charAt(0)));
+        if (rank == Rank.QUEEN)
+            piece = new Queen(pawn.getPlayer(), row, col, unicodes.get("Q" + pawn.getPlayer().toString().charAt(0)));
+        if (rank == Rank.ROOK)
+            piece = new Rook(pawn.getPlayer(), row, col, unicodes.get("R" + pawn.getPlayer().toString().charAt(0)));
+        if (rank == Rank.BISHOP)
+            piece = new Bishop(pawn.getPlayer(), row, col, unicodes.get("B" + pawn.getPlayer().toString().charAt(0)));
+        if (rank == Rank.KNIGHT)
+            piece = new Knight(pawn.getPlayer(), row, col, unicodes.get("N" + pawn.getPlayer().toString().charAt(0)));
 
         if (piece != null) {
             addPiece(piece);
@@ -316,12 +257,12 @@ public class BoardModel implements Serializable, Cloneable {
      * @return <code>String</code> - FEN of the <code>BoardModel</code>
      * @see <a href="https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation">More about FEN</a>
      */
-    public String toFEN(GameLogicInterface gameLogicInterface) {
-        String[] fenStrings = toFENStrings(gameLogicInterface);
+    public String toFEN() {
+        String[] fenStrings = toFENStrings();
         return String.format(Locale.ENGLISH, "%s %s %s %s %s %s", fenStrings[0], fenStrings[1], fenStrings[2], fenStrings[3], fenStrings[4], fenStrings[5]);
     }
 
-    private String[] toFENStrings(GameLogicInterface gameLogicInterface) {
+    private String[] toFENStrings() {
         String[] FEN = new String[6];
 
         StringBuilder position = new StringBuilder();
@@ -347,7 +288,7 @@ public class BoardModel implements Serializable, Cloneable {
 
         FEN[0] = String.valueOf(position);
 
-        if (gameLogicInterface.isWhiteToPlay()) FEN[1] = "w";
+        if (isWhiteToPlay()) FEN[1] = "w";
         else FEN[1] = "b";
 
         StringBuilder castleRights = getCastleRights();
@@ -433,22 +374,22 @@ public class BoardModel implements Serializable, Cloneable {
                 boolean isWhite = player == Player.WHITE;
                 switch (Character.toLowerCase(ch)) {
                     case 'k':
-                        piece = new King(player, row, col, -1, isWhite ? Unicodes.unicode_kw : Unicodes.unicode_kb);
+                        piece = new King(player, row, col, isWhite ? Unicodes.KW : Unicodes.KB);
                         break;
                     case 'q':
-                        piece = new Queen(player, row, col, -1, isWhite ? Unicodes.unicode_qw : Unicodes.unicode_qb);
+                        piece = new Queen(player, row, col, isWhite ? Unicodes.QW : Unicodes.QB);
                         break;
                     case 'r':
-                        piece = new Rook(player, row, col, -1, isWhite ? Unicodes.unicode_rw : Unicodes.unicode_rb);
+                        piece = new Rook(player, row, col, isWhite ? Unicodes.RW : Unicodes.RB);
                         break;
                     case 'b':
-                        piece = new Bishop(player, row, col, -1, isWhite ? Unicodes.unicode_bw : Unicodes.unicode_bb);
+                        piece = new Bishop(player, row, col, isWhite ? Unicodes.BW : Unicodes.BB);
                         break;
                     case 'n':
-                        piece = new Knight(player, row, col, -1, isWhite ? Unicodes.unicode_nw : Unicodes.unicode_nb);
+                        piece = new Knight(player, row, col, isWhite ? Unicodes.NW : Unicodes.NB);
                         break;
                     case 'p':
-                        piece = new Pawn(player, row, col, -1, isWhite ? Unicodes.unicode_pw : Unicodes.unicode_pb);
+                        piece = new Pawn(player, row, col, isWhite ? Unicodes.PW : Unicodes.PB);
                         if (row != (isWhite ? 1 : 6)) piece.setMoved(true);
                         break;
                     default:
@@ -500,5 +441,13 @@ public class BoardModel implements Serializable, Cloneable {
         ArrayList<Piece> capturedPieces = new ArrayList<>();
         for (Piece piece : pieces) if (piece.isCaptured()) capturedPieces.add(piece);
         return capturedPieces;
+    }
+
+    public boolean isWhiteToPlay() {
+        return turn == Player.WHITE;
+    }
+
+    public void setWhiteToPlay(boolean whiteToPlay) {
+        turn = whiteToPlay ? Player.WHITE : Player.BLACK;
     }
 }

@@ -2,12 +2,14 @@ package com.drdedd.chess.game;
 
 import com.drdedd.chess.misc.Log;
 import com.opencsv.CSVReader;
+import lombok.Getter;
 
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.TreeSet;
 
 /**
  * Tree collection of opening moves in chess<br/>
@@ -26,7 +28,10 @@ public class Openings {
     private final MoveNode root;
     private static Openings openings;
     public static final String separator = "%";
-    private final static String openingsCSV = "assets/csv/openings.csv";
+    private final HashMap<String, TreeSet<String>> ecoName = new HashMap<>();
+    @Getter
+    private final HashMap<String, ArrayList<String>> allOpenings = new HashMap<>();
+    private final static String openingsCSV = "src/main/resources/assets/csv/openings.csv";
 
     private Openings() {
         root = new MoveNode("-", "", "");
@@ -51,9 +56,14 @@ public class Openings {
     }
 
     private void addOpening(String moveSequence, String eco, String name) {
-//        String[] moves = moveSequence.replaceAll(moveNumberRegex, "").trim().split("\\s+");
         String[] moves = moveSequence.trim().split("\\s+");
-        String move, openingName;
+
+        if (!ecoName.containsKey(eco)) ecoName.put(eco, new TreeSet<>());
+        ecoName.get(eco).add(name);
+
+        allOpenings.put(eco + " " + name, new ArrayList<>(List.of(moves)));
+
+        String move;
         MoveNode moveNode = root, tempMoveNode;
         int i = 0, l = moves.length;
 
@@ -82,9 +92,7 @@ public class Openings {
         MoveNode newMoveNode = moveNode;
         while (i < l) {
             move = moves[i];
-//            openingName = (i == l - 1) ? name : "";
-            openingName = name;
-            newMoveNode.addNode(new MoveNode(move, eco, openingName));
+            newMoveNode.addNode(new MoveNode(move, eco, name));
             newMoveNode = newMoveNode.moveNodes.getLast();
             i++;
         }
@@ -94,9 +102,9 @@ public class Openings {
      * Use {@link Openings#separator separator} to separate move number and opening
      *
      * @param movesList List of moves
-     * @return Opening and move number<br>Format: <code>MoveNumber%Opening</code>
+     * @return Opening and move number<br>Format: <code>MoveNumber%ECO%OpeningName</code>
      */
-    public String searchOpening(LinkedList<String> movesList) {
+    public String searchOpening(List<String> movesList) {
         //Log.d(TAG, "searchOpening: Searching opening");
         long start = System.nanoTime(), end;
         ArrayList<String> moves = new ArrayList<>(movesList);
@@ -145,6 +153,19 @@ public class Openings {
 //        for (int j = 0; j <= pos; j++) openingMoves.append(moves.get(j)).append(' ');
         //Log.d(TAG, String.format("searchOpening: Time for searching opening: %,3d ns%nOpening: %s%nMoves: %s", end - start, opening, openingMoves));
         return pos + separator + eco + separator + opening;
+    }
+
+    public ArrayList<String> getOpeningsFromEco(String eco) {
+        if (!ecoName.containsKey(eco)) return null;
+        return getOpeningFromName(eco + " " + ecoName.get(eco).getFirst());
+    }
+
+    public String getOpeningName(String eco) {
+        return ecoName.containsKey(eco) ? ecoName.get(eco).getFirst() : null;
+    }
+
+    public ArrayList<String> getOpeningFromName(String openingName) {
+        return allOpenings.getOrDefault(openingName, null);
     }
 
     private static class MoveNode {

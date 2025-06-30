@@ -223,3 +223,26 @@ Below is a quick reference to how the endpoints are called via `cURL`:
    ```bash
    curl -X GET "http://localhost:8080/api/unicode?fen=8/8/2R1kpp1/3pp2p/8/1P2PPP1/P3K1P1/8 b - - 0 35"
    ```
+
+## Game Logic
+
+MVC application with BoardModel, GameUI and GameLogic classes
+
+### BoardModel (Model)
+
+Logical board with the data of the position
+
+- Set of pieces
+- Player turn
+- Castling rights
+- EnPassant pawn
+- Half move and full move clock
+
+### GameUI (View)
+
+UI class for the game view
+
+- Updates game data on the UI after each move
+- Displays game termination
+
+### 

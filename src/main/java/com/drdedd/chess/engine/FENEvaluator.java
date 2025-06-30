@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FENEvaluator {
-    public static final int NO_LIMIT = -1, MAX_DEPTH = 30, MIN_DEPTH = 15, MAX_VARIATIONS = 5;
+    public static final int NO_LIMIT = -1, MAX_DEPTH = 35, MIN_DEPTH = 15, MAX_VARIATIONS = 5;
     private final int evaluationDepth, evaluationVariations;
 
     public FENEvaluator(int depth, int variations) {

@@ -39,12 +39,18 @@ public class PGNParser extends Thread {
         invalidWords = new LinkedList<>();
     }
 
+    /**
+     * Parse the given PGN content asynchronously
+     */
     @Override
     public void run() {
         super.run();
         parse();
     }
 
+    /**
+     * Parse the given PGN content synchronously
+     */
     public void parse() {
         boolean readResult;
         long start, end;
@@ -68,6 +74,7 @@ public class PGNParser extends Thread {
                 Log.d(TAG, String.format(" run: Game valid and parsed!%nFinal position:%s", gameLogic.getBoardModel()));
 
                 String opening, eco;
+                int lastBookMove = -1;
                 if (gameLogic.getPGN().isFENEmpty()) {
                     start = System.nanoTime();
                     Openings openings = Openings.getInstance();
@@ -75,7 +82,7 @@ public class PGNParser extends Thread {
                     end = System.nanoTime();
 
                     String[] split = openingResult.split(Openings.separator);
-                    int lastBookMove = Integer.parseInt(split[0]);
+                    lastBookMove = Integer.parseInt(split[0]);
                     if (lastBookMove != -1 && split.length == 3) {
                         Log.printTime(TAG + " searching opening", end - start);
                         eco = split[1];
@@ -91,7 +98,7 @@ public class PGNParser extends Thread {
                     }
                 } else opening = eco = "";
 
-                parsedGame = new ParsedGame(gameLogic.getBoardModelStack(), gameLogic.getFENs(), gameLogic.getPGN(), eco, opening);
+                parsedGame = new ParsedGame(gameLogic.getBoardModelStack(), gameLogic.getFENs(), gameLogic.getPGN(), eco, opening, lastBookMove);
             } else Log.d(TAG, " run: Game not parsed!");
         }
         Log.d(TAG, " run: Total invalid words: " + invalidWords.size());
@@ -106,17 +113,22 @@ public class PGNParser extends Thread {
         int moveCount = -1;
         readTags(pgnContent);
 
-        String pgnMoves = pgnContent.replaceAll(Regexes.tagsRegex, "");
+        String pgnMoves = pgnContent.replaceAll(Regexes.tagsRegex, "").trim();
 
-        Matcher startingMoveMatcher = Regexes.startingMovePattern.matcher(pgnMoves);
-        boolean foundMoves = startingMoveMatcher.find();
-        if (!foundMoves) {
-            String error = "No moves in PGN!";
-            Log.d(TAG, String.format(" readPGN: %s\n%s", error, pgnContent));
-            return false;
+        String firstWord = pgnMoves.split(" ")[0];
+        int initialPos = 0;
+        if (!firstWord.matches(Regexes.singleMoveStrictRegex)) {
+            Matcher startingMoveMatcher = Regexes.startingMovePattern.matcher(pgnMoves);
+            boolean foundMoves = startingMoveMatcher.find();
+            if (!foundMoves) {
+                String error = "No moves in PGN!";
+                Log.d(TAG, String.format(" readPGN: %s\n%s", error, pgnContent));
+                return false;
+            }
+            initialPos = startingMoveMatcher.start();
         }
 
-        Scanner PGNReader = new Scanner(pgnMoves.substring(startingMoveMatcher.start()));
+        Scanner PGNReader = new Scanner(pgnMoves.substring(initialPos));
 
 //      Iterate through every word in the PGN
         while (PGNReader.hasNext()) {
@@ -179,7 +191,8 @@ public class PGNParser extends Thread {
                 if (word.matches(Regexes.moveNumberStrictRegex) || word.matches(Regexes.commentNumberStrictRegex))
                     continue;
 
-                invalidWords.add(word + ",after move: " + pgnData.getLastTempMove());
+                invalidWords.add(word + (pgnData.getTempMoves().isEmpty() ? "" : ", after move: " + pgnData.getLastTempMove()));
+                throw new InvalidPGNException(pgnContent, "Invalid word: " + invalidWords.getLast());
             } catch (Exception e) {
                 e.printStackTrace(System.err);
                 String error = "Error at :" + word;
@@ -197,7 +210,7 @@ public class PGNParser extends Thread {
     private boolean parsePGN() {
         char ch;
         LinkedList<String> moves = pgnData.getTempMoves();
-        int i, startRow, startCol, destRow, destCol, totalMoves = moves.size(), moveNo = 0;
+        int i, startRow, startCol, destRow, destCol, moveNo = 0;
         boolean promotion;
         Rank rank = null, promotionRank;
         Piece piece;
@@ -329,15 +342,15 @@ public class PGNParser extends Thread {
                     piece = gameLogic.getBoardModel().pieceAt(startRow, startCol);
                     Log.d(TAG, String.format(" parsePGN: piece at %s piece: %s", MiscMethods.toNotation(startRow, startCol), piece));
                 } else if (startCol != -1) {
-                    piece = gameLogic.getBoardModel().searchCol(gameLogic, player, rank, startCol, destRow, destCol);
+                    piece = searchCol(player, rank, startCol, destRow, destCol);
                     Log.d(TAG, String.format(" parsePGN: searched col: %d piece:%s", startCol, piece));
                 } else if (startRow != -1) {
-                    piece = gameLogic.getBoardModel().searchRow(gameLogic, player, rank, startRow, destRow, destCol);
+                    piece = searchRow(player, rank, startRow, destRow, destCol);
                     Log.d(TAG, String.format(" parsePGN: searched row: %d piece: %s", startRow, piece));
                 }
 
                 if (piece == null) {
-                    piece = gameLogic.getBoardModel().searchPiece(gameLogic, player, rank, destRow, destCol);
+                    piece = searchPiece(player, rank, destRow, destCol);
                     Log.d(TAG, " parsePGN: piece searched");
                 }
 
@@ -390,15 +403,72 @@ public class PGNParser extends Thread {
             }
         }
 
-        Set<String> tags = pgnData.getTags();
-        for (String tag : tags) {
-            String value = pgnData.getTagOrDefault(tag, null);
-            if (value != null && !value.isEmpty()) gameLogic.getPGN().addTag(tag, value);
-            Log.d(TAG, String.format(" parsePGN: Tag: [%s \"%s\"]", tag, value));
-        }
+        gameLogic.getPGN().addAllTags(pgnData.getTagsMap());
         return true;
     }
 
+    /**
+     * Search for piece from a specific row
+     *
+     * @param player  Player of the piece
+     * @param rank    Rank of the piece
+     * @param row     Row to be searched
+     * @param destRow Destination row
+     * @param destCol Destination column
+     * @return <code>Piece|null</code>
+     */
+    public Piece searchRow(Player player, Rank rank, int row, int destRow, int destCol) {
+        for (Piece piece : gameLogic.getBoardModel().pieces) {
+            if (piece.getPlayer() != player || piece.isCaptured()) continue;
+            if (piece.getRank() == rank && row == piece.getRow() && piece.canMoveTo(gameLogic, destRow, destCol))
+                return piece;
+        }
+        return null;
+    }
+
+    /**
+     * Search for piece from a specific column
+     *
+     * @param player  Player of the piece
+     * @param rank    Rank of the piece
+     * @param col     Column to be searched
+     * @param destRow Destination row
+     * @param destCol Destination column
+     * @return <code>Piece|null</code>
+     */
+    public Piece searchCol(Player player, Rank rank, int col, int destRow, int destCol) {
+        for (Piece piece : gameLogic.getBoardModel().pieces) {
+            if (piece.getPlayer() != player || piece.isCaptured()) continue;
+            if (piece.getRank() == rank && col == piece.getCol() && piece.canMoveTo(gameLogic, destRow, destCol))
+                return piece;
+        }
+        return null;
+    }
+
+    /**
+     * Search for piece from a specific position
+     *
+     * @param player Player of the piece
+     * @param rank   Rank of the piece
+     * @param row    Row to be searched
+     * @param col    Col to be searched
+     * @return <code>Piece|null</code>
+     */
+    public Piece searchPiece(Player player, Rank rank, int row, int col) {
+        for (Piece piece : gameLogic.getBoardModel().pieces) {
+            if (piece.getPlayer() != player || piece.isCaptured()) continue;
+            if (piece.getRank() == rank && piece.canMoveTo(gameLogic, row, col)) return piece;
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the given alternate move sequence for the previous move
+     *
+     * @param moveCount Move number
+     * @param word      Starting word of alternate move sequence
+     * @param PGNReader PGN scanner
+     */
     private void extractAlternateMoves(int moveCount, String word, Scanner PGNReader) {
         StringBuilder movesBuilder = new StringBuilder(word.substring(word.indexOf("(")));
         while (PGNReader.hasNext()) {
@@ -423,6 +493,12 @@ public class PGNParser extends Thread {
         if (feedback != null) pgnData.addAnnotation(moveCount, ChessAnnotation.getAnnotation(feedback));
     }
 
+    /**
+     * Extracts evaluation of the given move if any
+     *
+     * @param comment   Comment of the move
+     * @param moveCount Move number
+     */
     private void findEval(String comment, int moveCount) {
         Matcher matcher = Pattern.compile("\\[%eval [-+]?[#M]?-?[\\d.]+]").matcher(comment);
         if (matcher.find()) {
@@ -462,5 +538,4 @@ public class PGNParser extends Thread {
             }
         }
     }
-
 }

@@ -17,55 +17,35 @@ public abstract class Piece implements Serializable, Cloneable {
     /**
      * -- GETTER --
      * Returns Player type of the piece
-     *
      */
     @Getter
     private final Player player;
     /**
-     * -- GETTER --
      * Column number of the piece
-     *
      */
     @Getter
     private int col;
     /**
-     * -- GETTER --
      * Row number of the piece
-     *
      */
     @Getter
     private int row;
-    private final int resID;
     /**
-     * -- GETTER --
-     * Returns
-     * of the piece
-     *
+     * {@link Rank Rank} of the piece
      */
     @Getter
     private final Rank rank;
     /**
-     * -- SETTER --
-     * Sets piece has moved
-     *
+     * Piece has moved from its initial position
      */
     @Setter
     protected boolean moved;
     /**
-     * -- GETTER --
-     * <p>
-     * <p>
-     * -- SETTER --
-     * Sets whether piece is captured
-     *
+     * Piece is captured or not
      */
     @Setter
     @Getter
     protected boolean captured;
-    /**
-     * -- GETTER --
-     *
-     */
     @Getter
     private final String unicode;
 
@@ -74,14 +54,12 @@ public abstract class Piece implements Serializable, Cloneable {
      * @param rank   {@link Rank} of the piece
      * @param row    Row number of the piece
      * @param col    Column number of the piece
-     * @param resID  Resource ID of the piece
      */
-    protected Piece(Player player, int row, int col, Rank rank, int resID, String unicode) {
+    protected Piece(Player player, int row, int col, Rank rank, String unicode) {
         this.player = player;
         this.row = row;
         this.col = col;
         this.rank = rank;
-        this.resID = resID;
         this.unicode = unicode;
         this.captured = false;
     }

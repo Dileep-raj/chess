@@ -17,10 +17,9 @@ public class Bishop extends Piece {
      * @param player Player type (<code>WHITE|BLACK</code>)
      * @param row    Row number of the piece
      * @param col    Column number of the piece
-     * @param resID  Resource ID of the piece
      */
-    public Bishop(Player player, int row, int col, int resID, String unicode) {
-        super(player, row, col, Rank.BISHOP, resID, unicode);
+    public Bishop(Player player, int row, int col, String unicode) {
+        super(player, row, col, Rank.BISHOP, unicode);
     }
 
     @Override

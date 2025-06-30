@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class APIExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<Object> handleInvalidAPIRequestException(BadRequestException e) {
+    public ResponseEntity<Object> handleBadRequestException(BadRequestException e) {
         ExceptionRecord record = new ExceptionRecord(e.getMessage(), BadRequestException.getStatus());
         return new ResponseEntity<>(record, BadRequestException.getStatus());
     }

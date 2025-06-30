@@ -12,8 +12,10 @@ import com.drdedd.chess.game.pieces.King;
 import com.drdedd.chess.game.pieces.Pawn;
 import com.drdedd.chess.game.pieces.Piece;
 import com.drdedd.chess.misc.Log;
+import com.drdedd.chess.misc.MiscMethods;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.lang.Nullable;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -46,6 +48,8 @@ public class GameLogic implements GameLogicInterface {
     @Setter
     private Player playAs;
     private HashMap<String, HashSet<Integer>> allLegalMoves;
+    @Getter
+    private HashSet<String> allLegalMovesUCI;
     private Thread randomMoveThread;
     private boolean whiteToPlay, onePlayer, infinitePlay;
     private int count, halfMove, fullMove;
@@ -68,7 +72,7 @@ public class GameLogic implements GameLogicInterface {
      *
      * @param FEN FEN of the starting position
      */
-    public GameLogic(GameUI gameUI, String FEN) {
+    public GameLogic(@Nullable GameUI gameUI, String FEN) {
         this.gameUI = gameUI;
         this.FEN = FEN;
         initializeData();
@@ -84,13 +88,13 @@ public class GameLogic implements GameLogicInterface {
         gameUI = null;
         initializeData();
 
-        white = pgnData.getTagOrDefault(PGN.TAG_WHITE, "White");
-        black = pgnData.getTagOrDefault(PGN.TAG_BLACK, "Black");
-        date = pgnData.getTagOrDefault(PGN.TAG_DATE, "?");
+        white = pgnData.getTag(PGN.TAG_WHITE, PGN.UNKNOWN);
+        black = pgnData.getTag(PGN.TAG_BLACK, PGN.UNKNOWN);
+        date = pgnData.getTag(PGN.TAG_DATE, PGN.UNKNOWN);
         pgn.setWhiteBlack(white, black);
         pgn.addAllTags(pgnData.getTagsMap());
 
-        FEN = pgnData.getTagOrDefault(PGN.TAG_FEN, "");
+        FEN = pgnData.getTag(PGN.TAG_FEN, "");
         reset();
 
         pgn.setPGNData(pgnData);
@@ -117,7 +121,7 @@ public class GameLogic implements GameLogicInterface {
             boardModelStack = new Stack<>();
             FENs = new Stack<>();
             boardModelStack.push(boardModel);
-            FENs.push(boardModel.toFEN(this));
+            FENs.push(boardModel.toFEN());
             pgn = new PGN(app, white, black, date, true);
         }
 
@@ -137,12 +141,12 @@ public class GameLogic implements GameLogicInterface {
             boardModel = new BoardModel(true);
             pgn = new PGN(app, white, black, date, true);
         } else {
-            long start = System.nanoTime();
+//            long start = System.nanoTime();
             boardModel = BoardModel.parseFEN(FEN);
 
             Matcher player = Regexes.activePlayerPattern.matcher(FEN);
             if (player.find()) whiteToPlay = player.group().trim().equals("w");
-            long end = System.nanoTime();
+//            long end = System.nanoTime();
             // Log.printTime(TAG, "parsing FEN", end - start, FEN.length());
             pgn = new PGN(app, white, black, date, whiteToPlay, FEN);
         }
@@ -154,52 +158,67 @@ public class GameLogic implements GameLogicInterface {
     }
 
     public void playRandomMove() {
+        String randomMove = getRandomMove();
+        String from = randomMove.substring(0, 2), to = randomMove.substring(2, 4);
+        int fromRow = MiscMethods.toRow(from), fromCol = MiscMethods.toCol(from), toRow = MiscMethods.toRow(to), toCol = MiscMethods.toCol(to);
+        if (randomMove.length() == 5) {
+            Pawn pawn = (Pawn) pieceAt(fromRow, fromCol);
+            char ch = randomMove.charAt(4);
+            Rank r = switch (ch) {
+                case 'r' -> Rank.ROOK;
+                case 'n' -> Rank.KNIGHT;
+                case 'b' -> Rank.BISHOP;
+                default -> Rank.QUEEN;
+            };
+            promote(pawn, toRow, toCol, fromRow, fromCol, r);
+            return;
+        }
+        move(fromRow, fromCol, toRow, toCol);
+    }
+
+    public String getRandomMove() {
+        String move = null;
         try {
-            try {
-                Set<String> squares = allLegalMoves.keySet();
-                ArrayList<String> array = new ArrayList<>(squares);
-                Collections.shuffle(array);
+            Set<String> squares = allLegalMoves.keySet();
+            ArrayList<String> array = new ArrayList<>(squares);
+            Collections.shuffle(array);
 
-                // Pick a random piece square
-                String square = array.get(random.nextInt(array.size()));
-                if (square != null) {
-                    HashSet<Integer> moves = allLegalMoves.get(square);
+            // Pick a random piece square
+            String square = array.get(random.nextInt(array.size()));
+            if (square != null) {
+                HashSet<Integer> moves = allLegalMoves.get(square);
 
-                    // If piece has no legal moves pick another piece
-                    if (moves == null || moves.isEmpty()) for (String p : squares) {
-                        moves = allLegalMoves.get(p);
-                        if (moves != null && !moves.isEmpty()) {
-                            square = p;
-                            break;
-                        }
-                    }
-
-                    // If legal moves found for a piece
+                // If piece has no legal moves pick another piece
+                if (moves == null || moves.isEmpty()) for (String p : squares) {
+                    moves = allLegalMoves.get(p);
                     if (moves != null && !moves.isEmpty()) {
-                        Piece piece = pieceAt(toRow(square), toCol(square));
-                        ArrayList<Integer> legalMoves = new ArrayList<>(moves);
-                        int position = legalMoves.get(random.nextInt(legalMoves.size()));
-                        int fromRow = piece.getRow(), fromCol = piece.getCol(), row = position / 8, col = position % 8;
-
-                        // If move is promotion promote to random rank
-                        if (piece.getRank() == Rank.PAWN) {
-                            Pawn pawn = (Pawn) piece;
-                            Rank[] ranks = {Rank.QUEEN, Rank.ROOK, Rank.BISHOP, Rank.KNIGHT};
-                            if (pawn.canPromote() && promote(pawn, row, col, fromRow, fromCol, ranks[random.nextInt(ranks.length)]))
-                                return;
-                        }
-
-                        // Perform the randomly picked move
-                        move(fromRow, fromCol, row, col);
-//                        Log.d(TAG, String.format("run: Move %s: %s %s->%s", move(fromRow, fromCol, row, col) ? "played" : "failed!", piece.getUnicode(), square, piece.getSquare()));
+                        square = p;
+                        break;
                     }
                 }
-            } catch (Exception e) {
-                Log.e(TAG, "run: Exception occurred!", e);
+
+                // If legal moves found for a piece
+                if (moves != null && !moves.isEmpty()) {
+                    Piece piece = pieceAt(toRow(square), toCol(square));
+                    ArrayList<Integer> legalMoves = new ArrayList<>(moves);
+                    int position = legalMoves.get(random.nextInt(legalMoves.size()));
+                    int fromRow = piece.getRow(), fromCol = piece.getCol(), row = position / 8, col = position % 8;
+                    move = MiscMethods.toNotation(fromRow, fromCol) + MiscMethods.toNotation(row, col);
+
+                    // If move is promotion promote to random rank
+                    if (piece.getRank() == Rank.PAWN) {
+                        Pawn pawn = (Pawn) piece;
+                        Rank[] ranks = {Rank.QUEEN, Rank.ROOK, Rank.BISHOP, Rank.KNIGHT};
+                        if (pawn.canPromote() && promote(pawn, row, col, fromRow, fromCol, ranks[random.nextInt(ranks.length)])) {
+                            return move + ranks[random.nextInt(ranks.length)].getLetter();
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
-            Log.e(TAG, "playRandomMove: Exception!", e);
+            Log.e(TAG, "run: Exception occurred!", e);
         }
+        return move;
     }
 
     public void toggleInfinitePlay() {
@@ -362,7 +381,7 @@ public class GameLogic implements GameLogicInterface {
         String startCol;
         if (piece.getRank() == Rank.PAWN) {
             pieceChar = "";
-            if (!capture.isEmpty()) startCol = String.valueOf(toColChar(fromCol));
+            if (!capture.isEmpty()) startCol = java.lang.String.valueOf(toColChar(fromCol));
             else startCol = "";
         } else {
             pieceChar = String.valueOf(piece.getRank().getLetter());
@@ -523,10 +542,11 @@ public class GameLogic implements GameLogicInterface {
 
     private void pushToStack() {
         boardModelStack.push(boardModel.clone());
-        FENs.push(boardModel.toFEN(this));
+        FENs.push(boardModel.toFEN());
         boardModel.setMoveClocks(halfMove, fullMove);
         boardModel.fromSquare = fromSquare;
         boardModel.toSquare = toSquare;
+        boardModel.setWhiteToPlay(whiteToPlay);
         fromSquare = "";
         toSquare = "";
         updateAll();
@@ -539,9 +559,8 @@ public class GameLogic implements GameLogicInterface {
             boardModelStack.pop();
             FENs.pop();
             boardModel = boardModelStack.peek().clone();
-            if (boardModel.enPassantPawn != null) {
-                //Log.d(TAG, "undoLastMove: EnPassantPawn: " + boardModel.enPassantPawn.getPosition() + " EnPassantSquare: " + boardModel.enPassantSquare);
-            }
+//            if (boardModel.enPassantPawn != null)
+//                Log.d(TAG, "undoLastMove: EnPassantPawn: " + boardModel.enPassantPawn.getPosition() + " EnPassantSquare: " + boardModel.enPassantSquare);
             toggleGameState();
             updateAll();
         }
@@ -653,7 +672,8 @@ public class GameLogic implements GameLogicInterface {
         if (whitePieces.size() == 1 && blackPieces.size() == 1) return true;
         else if (whitePieces.size() <= 2 && blackPieces.size() == 1 || whitePieces.size() == 1 && blackPieces.size() <= 2) {
             for (Piece whitePiece : whitePieces)
-                if (whitePiece.getRank() == Rank.BISHOP || whitePiece.getRank() == Rank.KNIGHT) return true;
+                if (whitePiece.getRank() == Rank.BISHOP || whitePiece.getRank() == com.drdedd.chess.game.gameData.Rank.KNIGHT)
+                    return true;
             for (Piece blackPiece : blackPieces)
                 if (blackPiece.getRank() == Rank.BISHOP || blackPiece.getRank() == Rank.KNIGHT) return true;
         } else if (whitePieces.size() <= 2 && blackPieces.size() <= 2) {
@@ -738,6 +758,7 @@ public class GameLogic implements GameLogicInterface {
      */
     private void computeLegalMoves() {
         allLegalMoves = new HashMap<>();
+        allLegalMovesUCI = new HashSet<>();
         LinkedHashSet<Piece> pieces = boardModel.pieces;
         for (Piece piece : pieces) {
             if (!isPieceToPlay(piece) || piece.isCaptured()) continue;
@@ -750,6 +771,16 @@ public class GameLogic implements GameLogicInterface {
 
             possibleMoves.removeAll(illegalMoves);
             allLegalMoves.put(piece.getSquare(), possibleMoves);
+
+            for (int position : possibleMoves) {
+                String move = piece.getSquare() + toNotation(position);
+                if (piece.getRank() == Rank.PAWN && ((Pawn) piece).canPromote()) {
+                    allLegalMovesUCI.add(move + 'q');
+                    allLegalMovesUCI.add(move + 'r');
+                    allLegalMovesUCI.add(move + 'n');
+                    allLegalMovesUCI.add(move + 'b');
+                } else allLegalMovesUCI.add(move);
+            }
         }
     }
 
@@ -822,10 +853,6 @@ public class GameLogic implements GameLogicInterface {
     @Override
     public BoardModel getBoardModel() {
         return boardModel;
-    }
-
-    private void setGameState(ChessState gameState) {
-        GameLogic.gameState = gameState;
     }
 
     @Override

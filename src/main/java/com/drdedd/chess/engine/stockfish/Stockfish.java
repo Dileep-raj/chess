@@ -8,7 +8,6 @@ import lombok.Getter;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,23 +17,22 @@ import java.util.regex.Pattern;
 public class Stockfish {
     private static final String TAG = "Stockfish";
     private static final int timeout = 7500;
-    private static final String enginePathUbuntu = "assets/engine/sf17", enginePathWindows = "assets/engine/sf17.exe";
+    private static final String ENGINE_UBUNTU = "sf17", ENGINE_WINDOWS = "sf17.exe";
 
     private static final String uciBoardRegex = "^\\s*\\+[\\w\\s|+-]*?h", uciFENRegex = "Fen:.*", multiPVRegex = "multipv \\d";
     private static final Pattern uciBoardPattern = Pattern.compile(uciBoardRegex), uciFENPattern = Pattern.compile(uciFENRegex), multiPVPattern = Pattern.compile(multiPVRegex);
 
     // UCI Commands
-    private static final String readyResult = "readyok", noBestMove = "bestmove (none)";
-    private static final char newLine = '\n';
-    private static final int defaultMoveTime = 7500, defaultMoveDepth = 30;
-    private static final int defaultHash = 256;
+    private static final String READY_RESULT = "readyok", NO_BEST_MOVE = "bestmove (none)";
+    private static final char N = '\n';
+    private static final int DEFAULT_MOVE_TIME = 7500, DEFAULT_MOVE_DEPTH = 30;
+    private static final int DEFAULT_HASH = 256;
 
     private Process stockfishEngine;
     private BufferedReader engineReader, errorReader;
     private OutputStreamWriter engineWriter;
 
     private final HashMap<String, StockfishOption> stockfishOptions;
-    private final HashSet<String> infoParameters = EngineLine.getInfoParameters();
     /**
      * Stockfish engine version
      */
@@ -55,33 +53,6 @@ public class Stockfish {
     private int variations;
     private Timer timer;
 
-    public static void main(String[] args) {
-        Stockfish stockfish = new Stockfish("11");
-        if (stockfish.isEngineStarted()) {
-            System.out.println(stockfish.getBoard());
-
-//            System.out.printf("%nDefault position: %s%n", stockfish.getEngineLines(FENs.defaultPosition, "", -1, -1, -1).getFirst());
-//            System.out.printf("%nWhite to move losing: %s%n", stockfish.getEngineLines(FENs.whiteToMoveLosing, "", -1, -1, -1).getFirst());
-//            System.out.printf("%nBlack to move losing: %s%n", stockfish.getEngineLines(FENs.blackToMoveLosing, "", -1, -1, -1).getFirst());
-//            System.out.printf("%nStalemate: %s%n", stockfish.getEngineLines(FENs.stalemate, "", -1, -1, -1).getFirst());
-//            System.out.printf("%nWhite won: %s%n", stockfish.getEngineLines(FENs.whiteWon, "", -1, -1, -1).getFirst());
-//            System.out.printf("%nBlack won: %s%n", stockfish.getEngineLines(FENs.blackWon, "", -1, -1, -1).getFirst());
-//            System.out.printf("%nM2: %s%n", stockfish.getEngineLines(FENs.M2.getFirst(), "", -1, -1, -1).getFirst());
-//            System.out.printf("%nM1: %s%n", stockfish.getEngineLines(FENs.testFoolsM1, "", -1, -1, -1).getFirst());
-//            System.out.printf("%nM1: %s%n", stockfish.getEngineLines(FENs.M1.getFirst(), "", -1, -1, -1).getFirst());
-//
-//            System.out.println("\nTest MultiPV:");
-//            stockfish.setOption(StockfishOption.optionMultiPV, String.valueOf(3));
-//            ArrayList<EngineLine> engineLines = stockfish.getEngineLines(FENs.M4.getFirst(), "", -1, -1, -1);
-//            for (EngineLine engineLine : engineLines) System.out.println("\n" + engineLine);
-//            System.out.println("Eval: " + stockfish.getEngineLines("8/R7/2q5/8/6k1/8/1P5p/K6R w - - 0 124", "", 10000, -1, -1));
-
-            System.out.println("\nBench results:");
-            System.out.println(stockfish.getBench());
-            stockfish.quitEngine();
-        }
-    }
-
     public Stockfish(String threadCount) {
         HardwareInfo hardwareInfo = new HardwareInfo();
 
@@ -89,8 +60,10 @@ public class Stockfish {
         whiteToPlay = true;
         variations = 1;
 
-        System.out.println("\nEngine starting");
-        String path = String.format("src%smain%sresources%s%s", File.separator, File.separator, File.separator, hardwareInfo.getOSName().toLowerCase().contains("linux") ? enginePathUbuntu : enginePathWindows);
+        String s = File.separator;
+
+        System.out.println("\nLoading engine...");
+        String path = String.format("src%smain%sresources%sassets%sengine%s%s", s, s, s, s, s, hardwareInfo.getOSName().toLowerCase().contains("linux") ? ENGINE_UBUNTU : ENGINE_WINDOWS);
         try {
 //            ClassPathResource classPathResource = new ClassPathResource(path);
             System.out.println("Engine path: " + path);
@@ -102,6 +75,7 @@ public class Stockfish {
             stockfishEngine = new ProcessBuilder(path).start();
         } catch (IOException e) {
             e.printStackTrace(System.err);
+            return;
         }
 
         engineReader = new BufferedReader(new InputStreamReader(stockfishEngine.getInputStream()));
@@ -118,7 +92,7 @@ public class Stockfish {
             if (threads > hardwareInfo.maximumSafeThreads()) threads = (int) Math.max(1, maxThreadCount * 0.75);
         } else threads = (int) Math.max(1, maxThreadCount * 0.75);
 
-        hash = MiscMethods.convertToHigherBase(maxMemory, 1024, 2) > defaultHash ? defaultHash : 64;
+        hash = MiscMethods.convertToHigherBase(maxMemory, 1024, 2) > DEFAULT_HASH ? DEFAULT_HASH : 64;
         setOption(StockfishOption.optionThreads, String.valueOf(threads));
         setOption(StockfishOption.optionHash, String.valueOf(hash));
         if (isReady()) {
@@ -133,7 +107,7 @@ public class Stockfish {
      */
     public void stopEngine() {
         try {
-            sendCommand(Command.stopCommand.toString());
+            sendCommand(Command.STOP.toString());
             engineRunning = false;
             stockfishEngine = null;
             System.out.println("\nEngine stopped");
@@ -147,8 +121,8 @@ public class Stockfish {
      */
     public void quitEngine() {
         try {
-            sendCommand(Command.stopCommand.toString());
-            sendCommand(Command.exitCommand.toString());
+            sendCommand(Command.STOP.toString());
+            sendCommand(Command.EXIT.toString());
             engineRunning = false;
             System.out.println("\nEngine stopped and exited");
         } catch (Exception e) {
@@ -174,7 +148,7 @@ public class Stockfish {
                 return;
             }
             option.setValue(value);
-            sendCommand(commandBuilder(Command.setOptionCommand.command, StockfishOption.attributeName, name, StockfishOption.attributeValue, value));
+            sendCommand(commandBuilder(Command.SET_OPTION.command, StockfishOption.attributeName, name, StockfishOption.attributeValue, value));
             if (name.equals(StockfishOption.optionMultiPV)) variations = Integer.parseInt(value);
             System.out.printf("Set %s = %s%n", name, value);
         } else System.err.println("Unknown stockfish option: " + name);
@@ -185,10 +159,10 @@ public class Stockfish {
      */
     private boolean isReady() {
         if (engineRunning) return false;
-        sendCommand(Command.readyCommand.toString());
+        sendCommand(Command.READY.toString());
         while (true) {
             String output = readLine(engineReader);
-            if (output.equals(readyResult)) return true;
+            if (output.equals(READY_RESULT)) return true;
         }
     }
 
@@ -196,7 +170,7 @@ public class Stockfish {
      * Tells engine to use UCI and check options supported by the engine
      */
     private void runUCICommand() {
-        String commandResult = getCommandResult(Command.uciCommand.toString());
+        String commandResult = getCommandResult(Command.UCI.toString());
         String[] lines = commandResult.split("\\n");
 //        try {
         for (String line : lines)
@@ -245,8 +219,8 @@ public class Stockfish {
      * Initialize the board to default position
      */
     public void initializeBoard() {
-        sendCommand(Command.newGameCommand.toString());
-        sendCommand(Command.defaultPositionCommand.toString());
+        sendCommand(Command.NEW_GAME.toString());
+        sendCommand(Command.DEFAULT_POSITION.toString());
         whiteToPlay = true;
     }
 
@@ -257,7 +231,7 @@ public class Stockfish {
      */
     public void setPosition(String FEN) {
 //        sendCommand(newGameCommand);
-        sendCommand(commandBuilder("", Command.positionFENCommand.command, FEN));
+        sendCommand(commandBuilder("", Command.POSITION_FEN.command, FEN));
         whiteToPlay = FEN.contains(" w ");
     }
 
@@ -269,10 +243,10 @@ public class Stockfish {
     public void playMoves(String FEN, String moves) {
         String[] split = moves.split(" ");
         if (FEN.isEmpty()) {
-            sendCommand(commandBuilder(Command.defaultPositionCommand.command, Command.movesCommand.command, moves));
+            sendCommand(commandBuilder(Command.DEFAULT_POSITION.command, Command.MOVES.command, moves));
             whiteToPlay = split.length % 2 == 0;
         } else {
-            sendCommand(commandBuilder("", Command.positionFENCommand.command, FEN, Command.movesCommand.toString(), moves));
+            sendCommand(commandBuilder("", Command.POSITION_FEN.command, FEN, Command.MOVES.toString(), moves));
             whiteToPlay = FEN.contains(" w ");
             if (!moves.isEmpty() && split.length % 2 != 0) whiteToPlay = !whiteToPlay;
         }
@@ -285,7 +259,7 @@ public class Stockfish {
      */
     private void sendCommand(String command) {
         try {
-            engineWriter.write(command + newLine);
+            engineWriter.write(command + N);
             engineWriter.flush();
         } catch (Exception e) {
             e.printStackTrace(System.err);
@@ -314,17 +288,17 @@ public class Stockfish {
         playMoves(FEN, moves);
 
         if (time != -1 || depth != -1 || nodes != -1)
-            command = commandBuilder(Command.goCommand.command, Command.moveDepth.command, String.valueOf(depth), Command.moveTime.command, String.valueOf(time), Command.moveNodes.command, String.valueOf(nodes));
+            command = commandBuilder(Command.GO.command, Command.MOVE_DEPTH.command, String.valueOf(depth), Command.MOVE_TIME.command, String.valueOf(time), Command.MOVE_NODES.command, String.valueOf(nodes));
         else
-            command = commandBuilder(Command.goCommand.command, Command.moveDepth.command, String.valueOf(defaultMoveDepth), Command.moveTime.command, String.valueOf(defaultMoveTime));
+            command = commandBuilder(Command.GO.command, Command.MOVE_DEPTH.command, String.valueOf(DEFAULT_MOVE_DEPTH), Command.MOVE_TIME.command, String.valueOf(DEFAULT_MOVE_TIME));
 
         if (isReady()) sendCommand(command);
-        sendCommand(Command.readyCommand.command);
+        sendCommand(Command.READY.command);
         engineRunning = true;
         while (true) {
             line = readLine(engineReader);
             if (line.startsWith("bestmove")) {
-                gameOver = line.equals(noBestMove);
+                gameOver = line.equals(NO_BEST_MOVE);
                 break;
             }
             if ((lines[0] == null || lines[0].isEmpty()) && line.contains("score")) lines[0] = line;
@@ -346,8 +320,8 @@ public class Stockfish {
 
     public String getBench() {
         String line;
-        sendCommand(Command.stopCommand.command);
-        sendCommand(Command.benchCommand.command);
+        sendCommand(Command.STOP.command);
+        sendCommand(Command.BENCH.command);
         engineRunning = true;
         long ms = 0, nodes = 0, nps = 0;
         while ((line = readLine(engineReader)) != null) if (line.equals("bestmove f1g1 ponder f8g8")) break;
@@ -417,11 +391,11 @@ public class Stockfish {
         if (isReady()) engineRunning = true;
 
         sendCommand(command);
-        sendCommand(Command.readyCommand.command);
+        sendCommand(Command.READY.command);
         while (true) {
             line = readLine(engineReader);
-            if (line.equals(readyResult)) break;
-            result.append(line).append(newLine);
+            if (line.equals(READY_RESULT)) break;
+            result.append(line).append(N);
         }
         engineRunning = false;
         return result.toString();
@@ -431,9 +405,9 @@ public class Stockfish {
      * @return <code>String</code> - UCI board
      */
     public String getBoard() {
-        String commandResult = getCommandResult(Command.displayBoardCommand.command);
+        String commandResult = getCommandResult(Command.DISPLAY_BOARD.command);
         Matcher uciBoardMatcher = uciBoardPattern.matcher(commandResult);
-        if (uciBoardMatcher.find()) return uciBoardMatcher.group() + newLine;
+        if (uciBoardMatcher.find()) return uciBoardMatcher.group() + N;
         else System.err.println("UCI Board not found!");
         return "";
     }
@@ -442,7 +416,7 @@ public class Stockfish {
      * @return <code>String</code> - FEN of the current position
      */
     public String getFEN() {
-        String commandResult = getCommandResult(Command.displayBoardCommand.command);
+        String commandResult = getCommandResult(Command.DISPLAY_BOARD.command);
         Matcher FENMatcher = uciFENPattern.matcher(commandResult);
         if (FENMatcher.find()) return FENMatcher.group().replace("Fen: ", "").trim();
         else System.err.println("FEN not found!");
@@ -506,67 +480,67 @@ public class Stockfish {
         /**
          * Bench engine
          */
-        benchCommand("bench"),
+        BENCH("bench"),
         /**
          * Get compiler information
          */
-        compilerCommand("compiler"),
+        COMPILER("compiler"),
         /**
          * Set board to default start position
          */
-        defaultPositionCommand("position startpos"),
+        DEFAULT_POSITION("position startpos"),
         /**
          * Displays board in terminal
          */
-        displayBoardCommand("d"),
+        DISPLAY_BOARD("d"),
         /**
          * Quit engine
          */
-        exitCommand("quit"),
+        EXIT("quit"),
         /**
          * Start searching
          */
-        goCommand("go"),
+        GO("go"),
         /**
          * Depth limit for search
          */
-        moveDepth("depth"),
+        MOVE_DEPTH("depth"),
         /**
          * Node limit for search
          */
-        moveNodes("nodes"),
+        MOVE_NODES("nodes"),
         /**
          * Time limit for search
          */
-        moveTime("movetime"),
+        MOVE_TIME("movetime"),
         /**
          * Make specified moves in the given position
          */
-        movesCommand("moves"),
+        MOVES("moves"),
         /**
          * New UCI game
          */
-        newGameCommand("ucinewgame"),
+        NEW_GAME("ucinewgame"),
         /**
          * Set board to given fen position
          */
-        positionFENCommand("position fen"),
+        POSITION_FEN("position fen"),
         /**
          * Is engine ready
          */
-        readyCommand("isready"),
+        READY("isready"),
         /**
          * Change UCI option
          */
-        setOptionCommand("setoption"),
+        SET_OPTION("setoption"),
         /**
          * Stop search
          */
-        stopCommand("stop"),
+        STOP("stop"),
         /**
          * Set UCI mode for engine
          */
-        uciCommand("uci");
+        UCI("uci");
 
         private final String command;
 

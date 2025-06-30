@@ -20,7 +20,6 @@ import java.util.LinkedHashMap;
 
 public class PGNAnalyzer {
     public static final int NO_LIMIT = -1, MAX_DEPTH = 30, MIN_DEPTH = 15;
-//    public static final String KEY_NAME = "name", KEY_ACCURACY = "accuracy", KEY_GREAT = "great", KEY_INACCURACY = "inaccuracy", KEY_MISTAKE = "mistake", KEY_BLUNDER = "blunder", KEY_ACPL = "acpl";
     private static final float blunderThreshold = 2.5f, mistakeThreshold = 1.2f, inaccuracyThreshold = 0.6f;
     private static final int greatMoveThreshold = 5, maxCP = 15300;
     private final ArrayList<Integer> winPercentage, accuracy;
@@ -70,9 +69,9 @@ public class PGNAnalyzer {
             PGNParser pgnParser = new PGNParser(pgnContent);
             pgnParser.parse();
             ParsedGame parsedGame = pgnParser.getParsedGame();
-            pgn = parsedGame.getPGN();
+            pgn = parsedGame.pgn();
             pgnData = pgn.getPGNData();
-            FENs = new ArrayList<>(parsedGame.getFENs());
+            FENs = new ArrayList<>(parsedGame.FENs());
             moves = new ArrayList<>(pgn.getUCIMoves());
             LinkedHashMap<String, String> tagsMap = pgnData.getTagsMap();
             startsWithWhite = !tagsMap.containsKey(PGN.TAG_FEN) || tagsMap.get(PGN.TAG_FEN).contains(" w ");
@@ -100,7 +99,7 @@ public class PGNAnalyzer {
             data.setBlackAnalysis(blackReport);
             data.setEvaluations(evaluations);
             data.setAnnotations(annotations);
-            if (includeFENs) data.setFens(new ArrayList<>(parsedGame.getFENs()));
+            if (includeFENs) data.setFens(new ArrayList<>(parsedGame.FENs()));
         } catch (Exception e) {
             System.err.println("Error while analyzing PGN!");
             e.printStackTrace(System.err);
@@ -112,8 +111,8 @@ public class PGNAnalyzer {
         long whiteACPL = Math.round(whiteCPLoss / whiteCPMoves);
         long blackACPL = Math.round(blackCPLoss / blackCPMoves);
 
-        String whiteName = pgnData.getTagOrDefault(PGN.TAG_WHITE, "White");
-        String blackName = pgnData.getTagOrDefault(PGN.TAG_BLACK, "Black");
+        String whiteName = pgnData.getTag(PGN.TAG_WHITE, "White");
+        String blackName = pgnData.getTag(PGN.TAG_BLACK, "Black");
 
         long whiteAccuracy, blackAccuracy;
         whiteAccuracy = computeAverageAccuracy(true);
@@ -342,8 +341,8 @@ public class PGNAnalyzer {
         long whiteACPL = Math.round(whiteCPLoss / whiteCPMoves);
         long blackACPL = Math.round(blackCPLoss / blackCPMoves);
 
-        String whiteName = pgnData.getTagOrDefault(PGN.TAG_WHITE, "White");
-        String blackName = pgnData.getTagOrDefault(PGN.TAG_BLACK, "Black");
+        String whiteName = pgnData.getTag(PGN.TAG_WHITE, "White");
+        String blackName = pgnData.getTag(PGN.TAG_BLACK, "Black");
 
         long whiteAccuracy = computeAverageAccuracy(true), blackAccuracy = computeAverageAccuracy(false);
 
