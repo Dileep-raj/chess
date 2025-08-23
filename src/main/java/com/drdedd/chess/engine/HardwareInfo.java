@@ -29,23 +29,15 @@ public class HardwareInfo {
         username = System.getProperty("user.name");
 
         infoMap = new HashMap<>();
-        infoMap.put(MAX_MEMORY, (maxMemory == Long.MAX_VALUE ? "no limit" : convertBytes(maxMemory)));
+        infoMap.put(MAX_MEMORY, (maxMemory == Long.MAX_VALUE ? "no limit" : MiscMethods.formatBytes(maxMemory)));
         infoMap.put(OS, OSName);
         infoMap.put(LOGICAL_CORES, String.valueOf(availableProcessors));
-        infoMap.put(FREE_MEMORY, convertBytes(freeMemory));
-        infoMap.put(TOTAL_MEMORY, convertBytes(totalMemory));
+        infoMap.put(FREE_MEMORY, MiscMethods.formatBytes(freeMemory));
+        infoMap.put(TOTAL_MEMORY, MiscMethods.formatBytes(totalMemory));
     }
 
     public String getProperty(String propertyName) {
         return infoMap.getOrDefault(propertyName, UNKNOWN);
-    }
-
-    public void printInfo() {
-        System.out.println("OS name: " + infoMap.getOrDefault(OS, UNKNOWN));
-        System.out.println("Available processors (cores): " + infoMap.getOrDefault(LOGICAL_CORES, UNKNOWN));
-        System.out.println("Free memory: " + infoMap.getOrDefault(FREE_MEMORY, UNKNOWN));
-        System.out.println("Maximum memory: " + infoMap.getOrDefault(MAX_MEMORY, UNKNOWN));
-        System.out.println("Total memory available to JVM: " + infoMap.getOrDefault(TOTAL_MEMORY, UNKNOWN));
     }
 
     public int maximumSafeThreads() {
@@ -56,7 +48,8 @@ public class HardwareInfo {
         }
     }
 
-    private static String convertBytes(long bytes) {
-        return MiscMethods.convertBytes(bytes) + "B";
+    @Override
+    public String toString() {
+        return ("OS name: %s\nAvailable processors (cores): %s\nFree memory: %s\nMaximum memory: %s\nTotal memory available to JVM: %s").formatted(infoMap.getOrDefault(OS, UNKNOWN), infoMap.getOrDefault(LOGICAL_CORES, UNKNOWN), infoMap.getOrDefault(FREE_MEMORY, UNKNOWN), infoMap.getOrDefault(MAX_MEMORY, UNKNOWN), infoMap.getOrDefault(TOTAL_MEMORY, UNKNOWN));
     }
 }

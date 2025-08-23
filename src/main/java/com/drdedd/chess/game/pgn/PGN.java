@@ -1,9 +1,11 @@
 package com.drdedd.chess.game.pgn;
 
+import com.drdedd.chess.game.data.Rank;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Set;
@@ -30,7 +32,12 @@ public class PGN implements Serializable {
     @Getter
     @Setter
     private String termination = "";
+    @Setter
+    @Getter
     private PGNData data;
+    @Getter
+    @Setter
+    private ArrayList<PGNMove> pgnMoves;
     /**
      * Flag - White to play
      */
@@ -50,6 +57,7 @@ public class PGN implements Serializable {
      */
     public PGN(String app, String white, String black, String date, boolean whiteToPlay) {
         data = new PGNData();
+        pgnMoves = new ArrayList<>();
         data.addTag(TAG_APP, app);
         data.addTag(TAG_WHITE, white);
         data.addTag(TAG_BLACK, black);
@@ -76,6 +84,7 @@ public class PGN implements Serializable {
      */
     public PGN(String app, String white, String black, String date, boolean whiteToPlay, String startingPosition) {
         data = new PGNData();
+        pgnMoves = new ArrayList<>();
         data.addTag(TAG_APP, app);
         data.addTag(TAG_WHITE, white);
         data.addTag(TAG_BLACK, black);
@@ -105,6 +114,16 @@ public class PGN implements Serializable {
     }
 
     /**
+     * Adds moves to the PGN moves list
+     *
+     * @param sanMove Move in Standard Algebraic Notation
+     */
+    public void addMove(String sanMove, int fromRow, int fromCol, int toRow, int toCol, Rank promotionRank, boolean check, boolean checkMate) {
+        PGNMove move = new PGNMove(0, sanMove, fromRow, fromCol, toRow, toCol, promotionRank, check, checkMate);
+        pgnMoves.add(move);
+    }
+
+    /**
      * Removes last move from PGN
      */
     public void removeLast() {
@@ -112,6 +131,7 @@ public class PGN implements Serializable {
             data.getSanMoves().removeLast();
             data.getUciMoves().removeLast();
         }
+        if (!pgnMoves.isEmpty()) pgnMoves.removeLast();
     }
 
     /**
@@ -126,14 +146,14 @@ public class PGN implements Serializable {
     }
 
     /**
-     * @return <code>String</code> - White player name
+     * @return {@link String} - White player name
      */
     public String getWhite() {
         return data.getTag(TAG_WHITE, PGN.UNKNOWN);
     }
 
     /**
-     * @return <code>String</code> - Black player name
+     * @return {@link String} - Black player name
      */
     public String getBlack() {
         return data.getTag(TAG_BLACK, PGN.UNKNOWN);
@@ -142,7 +162,7 @@ public class PGN implements Serializable {
     /**
      * Converts PGN to standard text format
      *
-     * @return String - PGN with tags and moves
+     * @return {@link String} - PGN with tags and moves
      */
     @Override
     public String toString() {
@@ -152,7 +172,7 @@ public class PGN implements Serializable {
     /**
      * PGN tags with their values
      *
-     * @return String - PGN Tags text
+     * @return {@link String} - PGN Tags text
      */
     public String getTags() {
         StringBuilder tags = new StringBuilder();
@@ -186,7 +206,7 @@ public class PGN implements Serializable {
     }
 
     /**
-     * @return <code>String</code> - PGN moves without tags, comments and annotations
+     * @return {@link String} - PGN moves without tags, comments and annotations
      */
     public String getPGNMoves() {
         StringBuilder pgn = new StringBuilder();
@@ -199,7 +219,7 @@ public class PGN implements Serializable {
     }
 
     /**
-     * @return <code>String</code> - PGN moves with comments and annotation
+     * @return {@link String} - PGN moves with comments and annotation
      */
     public String getPGNCommented() {
         StringBuilder pgn = new StringBuilder();
@@ -213,6 +233,12 @@ public class PGN implements Serializable {
             if (data.getAlternateMoveSequence().containsKey(i))
                 pgn.append(data.getAlternateMoveSequence().get(i)).append(' ');
         }
+        return pgn.toString();
+    }
+
+    public String buildMovesCommented() {
+        StringBuilder pgn = new StringBuilder();
+        for (PGNMove pgnMove : pgnMoves) pgn.append(pgnMove.toString());
         return pgn.toString();
     }
 
@@ -244,7 +270,7 @@ public class PGN implements Serializable {
     /**
      * @return List of moves
      */
-    public LinkedList<String> getMoves() {
+    public LinkedList<String> getSanMoves() {
         return data.getSanMoves();
     }
 
@@ -269,14 +295,6 @@ public class PGN implements Serializable {
         data.addTags(tags);
     }
 
-    public void setPGNData(PGNData pgnData) {
-        this.data = pgnData;
-    }
-
-    public PGNData getPGNData() {
-        return data;
-    }
-
     public boolean hasNoEval() {
         return data.getEvalMap().isEmpty() || data.getEvalMap().size() == 1;
     }
@@ -285,4 +303,12 @@ public class PGN implements Serializable {
         return startingPosition.isEmpty();
     }
 
+    /**
+     * @param tagName      Name of the tag
+     * @param defaultValue Fallback value, if tag not found
+     * @return {@link String} - Tag value | Default value
+     */
+    public String getTag(String tagName, String defaultValue) {
+        return data.getTag(tagName, defaultValue);
+    }
 }

@@ -3,10 +3,10 @@ package com.drdedd.chess.game.pgn;
 import com.drdedd.chess.game.GameLogic;
 import com.drdedd.chess.game.Openings;
 import com.drdedd.chess.game.ParsedGame;
+import com.drdedd.chess.game.data.ChessAnnotation;
+import com.drdedd.chess.game.data.Player;
+import com.drdedd.chess.game.data.Rank;
 import com.drdedd.chess.game.data.Regexes;
-import com.drdedd.chess.game.gameData.ChessAnnotation;
-import com.drdedd.chess.game.gameData.Player;
-import com.drdedd.chess.game.gameData.Rank;
 import com.drdedd.chess.game.pieces.King;
 import com.drdedd.chess.game.pieces.Pawn;
 import com.drdedd.chess.game.pieces.Piece;
@@ -31,7 +31,7 @@ public class PGNParser extends Thread {
     private ParsedGame parsedGame;
 
     /**
-     * @param pgnContent PGN in <code>String</code> format
+     * @param pgnContent PGN in {@link String} format
      */
     public PGNParser(String pgnContent) {
         this.pgnContent = pgnContent;
@@ -75,10 +75,10 @@ public class PGNParser extends Thread {
 
                 String opening, eco;
                 int lastBookMove = -1;
-                if (gameLogic.getPGN().isFENEmpty()) {
+                if (gameLogic.getPgn().isFENEmpty()) {
                     start = System.nanoTime();
                     Openings openings = Openings.getInstance();
-                    String openingResult = openings.searchOpening(gameLogic.getPGN().getUCIMoves());
+                    String openingResult = openings.searchOpening(gameLogic.getPgn().getUCIMoves());
                     end = System.nanoTime();
 
                     String[] split = openingResult.split(Openings.separator);
@@ -87,18 +87,18 @@ public class PGNParser extends Thread {
                         Log.printTime(TAG + " searching opening", end - start);
                         eco = split[1];
                         opening = split[2];
-                        gameLogic.getPGN().setLastBookMoveNo(lastBookMove);
-                        gameLogic.getPGN().addTag(PGN.TAG_ECO, eco);
-                        gameLogic.getPGN().addTag(PGN.TAG_OPENING, opening);
+                        gameLogic.getPgn().setLastBookMoveNo(lastBookMove);
+                        gameLogic.getPgn().addTag(PGN.TAG_ECO, eco);
+                        gameLogic.getPgn().addTag(PGN.TAG_OPENING, opening);
                         for (int i = 0; i <= lastBookMove; i++)
-                            gameLogic.getPGN().getPGNData().addAnnotation(i, ChessAnnotation.BOOK);
+                            gameLogic.getPgn().getData().addAnnotation(i, ChessAnnotation.BOOK);
                     } else {
                         opening = eco = "";
-                        Log.d(TAG, String.format(" readPGN: Opening not found!\n%s\nMoves: %s", Arrays.toString(split), gameLogic.getPGN().getUCIMoves().subList(0, Math.min(gameLogic.getPGN().getUCIMoves().size(), 10))));
+                        Log.d(TAG, String.format(" readPGN: Opening not found!\n%s\nMoves: %s", Arrays.toString(split), gameLogic.getPgn().getUCIMoves().subList(0, Math.min(gameLogic.getPgn().getUCIMoves().size(), 10))));
                     }
                 } else opening = eco = "";
 
-                parsedGame = new ParsedGame(gameLogic.getBoardModelStack(), gameLogic.getFENs(), gameLogic.getPGN(), eco, opening, lastBookMove);
+                parsedGame = new ParsedGame(gameLogic.getBoardModelStack(), gameLogic.getFENs(), gameLogic.getPgn(), eco, opening, lastBookMove);
             } else Log.d(TAG, " run: Game not parsed!");
         }
         Log.d(TAG, " run: Total invalid words: " + invalidWords.size());
@@ -403,7 +403,7 @@ public class PGNParser extends Thread {
             }
         }
 
-        gameLogic.getPGN().addAllTags(pgnData.getTagsMap());
+        gameLogic.getPgn().addAllTags(pgnData.getTagsMap());
         return true;
     }
 
@@ -513,7 +513,7 @@ public class PGNParser extends Thread {
     /**
      * Extracts Tags from the PGN
      *
-     * @param pgn PGN in <code>String</code> format
+     * @param pgn PGN in {@link String} format
      */
     private void readTags(String pgn) {
         Scanner tagReader = new Scanner(pgn);

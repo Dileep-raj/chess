@@ -1,5 +1,41 @@
 # Chess - Spring Boot Application
 
+---
+
+## Getting started
+
+### Build and run
+
+#### Using Docker
+
+Build and run the application with the following command from the project base folder:
+
+```shell
+docker build -t chess-app:latest .
+docker run -d -p 8080:8080 chess-app
+```
+
+#### Using the jar
+
+- Install and setup JDK 21 and maven
+- Clone the repository
+- Run the following commands from the project base folder:
+
+```shell
+mvn clean install
+java -jar target/chess-0.0.1.jar
+```
+
+#### Using IntelliJ or other IDE
+
+- Install and setup JDK 21 in your local environment
+- Clone the repository and open the project in the IDE
+- Run `ChessApplication.java`
+
+---
+
+## API
+
 ### About
 
 Plain description of the API
@@ -190,13 +226,13 @@ a b c d e f g h</pre>
 
 ---
 
-### **General Notes**
+### General Notes
 
 * All endpoints are designed for ease of use with **RESTful** principles.
 * Responses are typically returned as **JSON** for most endpoints, and **HTML** for Unicode board rendering.
 * The **evaluation depth** and **variations** can be adjusted based on the user's preference for analysis.
 
-### **Example cURL Usage**:
+### Example cURL Usage:
 
 Below is a quick reference to how the endpoints are called via `cURL`:
 
@@ -224,6 +260,8 @@ Below is a quick reference to how the endpoints are called via `cURL`:
    curl -X GET "http://localhost:8080/api/unicode?fen=8/8/2R1kpp1/3pp2p/8/1P2PPP1/P3K1P1/8 b - - 0 35"
    ```
 
+---
+
 ## Game Logic
 
 MVC application with BoardModel, GameUI and GameLogic classes
@@ -245,4 +283,8 @@ UI class for the game view
 - Updates game data on the UI after each move
 - Displays game termination
 
-### 
+---
+
+## References & Sources:
+
+- Openings source: [Lichess github repository](https://github.com/lichess-org/chess-openings/tree/master)

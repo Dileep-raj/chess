@@ -1,7 +1,7 @@
 package com.drdedd.chess.game;
 
 import com.drdedd.chess.game.data.FENs;
-import com.drdedd.chess.game.gameData.Rank;
+import com.drdedd.chess.game.data.Rank;
 import com.drdedd.chess.game.pieces.King;
 import com.drdedd.chess.game.pieces.Pawn;
 import com.drdedd.chess.game.pieces.Piece;

@@ -5,19 +5,33 @@ import com.drdedd.chess.engine.stockfish.EngineLine;
 import com.drdedd.chess.engine.stockfish.Stockfish;
 import com.drdedd.chess.engine.stockfish.StockfishOption;
 import com.drdedd.chess.game.data.Regexes;
+import org.springframework.http.HttpStatus;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Evaluates given position using engine
+ */
 public class FENEvaluator {
     public static final int NO_LIMIT = -1, MAX_DEPTH = 35, MIN_DEPTH = 15, MAX_VARIATIONS = 5;
     private final int evaluationDepth, evaluationVariations;
 
+    /**
+     * @param depth      Depth of evaluation
+     * @param variations Number of move variations
+     */
     public FENEvaluator(int depth, int variations) {
         evaluationDepth = depth < 1 ? MIN_DEPTH : Math.min(depth, MAX_DEPTH);
         evaluationVariations = variations < 1 ? 1 : Math.min(variations, MAX_VARIATIONS);
     }
 
+    /**
+     * Perform evaluation for the given FEN
+     *
+     * @param FEN FEN of the board position
+     * @return {@link EvaluationData}
+     */
     public EvaluationData evaluate(String FEN) {
         EvaluationData data = new EvaluationData();
         data.setSuccess(false);
@@ -31,7 +45,7 @@ public class FENEvaluator {
         try {
             // Initialize engine
             HardwareInfo hardwareInfo = new HardwareInfo();
-            Stockfish stockfish = new Stockfish(String.valueOf(hardwareInfo.maximumSafeThreads()));
+            Stockfish stockfish = new Stockfish(hardwareInfo.maximumSafeThreads());
             stockfish.setOption(StockfishOption.optionMultiPV, String.valueOf(evaluationVariations));
             data.setEngine(stockfish.getStockfishVersion());
 
@@ -45,6 +59,7 @@ public class FENEvaluator {
 
             data.setSuccess(true);
             data.setMessage("Evaluation successful");
+            data.setStatus(HttpStatus.OK);
             data.setEval(engineLines.getFirst().getEval());
             data.setBestmove(engineLines.getFirst().getBestmove());
             data.setEngineLine(engineLines.getFirst().getLine());

@@ -1,9 +1,9 @@
 package com.drdedd.chess.game;
 
+import com.drdedd.chess.game.data.Player;
+import com.drdedd.chess.game.data.Rank;
 import com.drdedd.chess.game.data.Regexes;
-import com.drdedd.chess.game.gameData.Player;
-import com.drdedd.chess.game.gameData.Rank;
-import com.drdedd.chess.game.gameData.Unicodes;
+import com.drdedd.chess.game.data.Unicodes;
 import com.drdedd.chess.game.pieces.*;
 import com.drdedd.chess.misc.MiscMethods;
 import lombok.Getter;
@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 
 /**
- * Stores pieces location, enPassant square and other board UI data<br>
+ * Stores pieces location, enPassant square and other board data
  */
 public class BoardModel implements Serializable, Cloneable {
     private static final String TAG = "BoardModel";
@@ -187,7 +187,7 @@ public class BoardModel implements Serializable, Cloneable {
     }
 
     /**
-     * Converts the <code>BoardModel</code> to <code>String</code> type <br>
+     * Converts the <code>BoardModel</code> to {@link String} type <br>
      * <ul>
      * <li>UpperCase letter represents White Piece <br></li>
      * <li>LowerCase letter represents Black Piece <br></li>
@@ -214,7 +214,7 @@ public class BoardModel implements Serializable, Cloneable {
     }
 
     /**
-     * Converts the <code>BoardModel</code> to <code>String</code> type <br>
+     * Converts the <code>BoardModel</code> to {@link String} type <br>
      * Uses Unicode to represent pieces and hyphen (-) for empty square
      *
      * @return Unicode board
@@ -254,7 +254,7 @@ public class BoardModel implements Serializable, Cloneable {
     /**
      * Converts current position to FEN Notation <br>
      *
-     * @return <code>String</code> - FEN of the <code>BoardModel</code>
+     * @return {@link String} - FEN of the <code>BoardModel</code>
      * @see <a href="https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation">More about FEN</a>
      */
     public String toFEN() {

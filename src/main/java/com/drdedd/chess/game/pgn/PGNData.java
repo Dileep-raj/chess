@@ -1,6 +1,6 @@
 package com.drdedd.chess.game.pgn;
 
-import com.drdedd.chess.game.gameData.ChessAnnotation;
+import com.drdedd.chess.game.data.ChessAnnotation;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -55,7 +55,7 @@ public class PGNData implements Serializable {
     /**
      * @param tagName      Name of the tag
      * @param defaultValue Fallback value, if tag not found
-     * @return <code>String</code> - Tag value | Default value
+     * @return {@link String} - Tag value | Default value
      */
     public String getTag(String tagName, String defaultValue) {
         return tagsMap.getOrDefault(tagName, defaultValue);

@@ -10,6 +10,7 @@ public class FENs {
     public static final String stalemate = "k7/8/KQ6/8/8/8/8/8 b - - 0 1";
     public static final String blackToMoveLosing = "rnb1kbnr/ppp1pppp/8/8/8/8/PPP2PPP/RNBQKBNR b KQkq - 0 1";
     public static final String whiteToMoveLosing = "rnbqkbnr/ppp1pppp/8/8/8/8/PPP2PPP/RNB1KBNR w KQkq - 0 1";
+    public static final String invalidFEN = "rnbqkbnr/8/8/8/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1";
 
     public static final String testFoolsM1 = "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2";
 

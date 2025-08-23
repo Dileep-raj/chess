@@ -31,7 +31,7 @@ public class Openings {
     private final HashMap<String, TreeSet<String>> ecoName = new HashMap<>();
     @Getter
     private final HashMap<String, ArrayList<String>> allOpenings = new HashMap<>();
-    private final static String openingsCSV = "src/main/resources/assets/csv/openings.csv";
+    private final static String openingsCSV = "src/main/resources/assets/openings.csv";
 
     private Openings() {
         root = new MoveNode("-", "", "");
@@ -50,11 +50,19 @@ public class Openings {
         }
     }
 
+    /**
+     * @return Singleton instance of {@link Openings}
+     */
     public static Openings getInstance() {
         if (openings == null) openings = new Openings();
         return openings;
     }
 
+    /**
+     * @param moveSequence List of moves
+     * @param eco          ECO code of the opening
+     * @param name         Name of the opening
+     */
     private void addOpening(String moveSequence, String eco, String name) {
         String[] moves = moveSequence.trim().split("\\s+");
 
@@ -155,19 +163,34 @@ public class Openings {
         return pos + separator + eco + separator + opening;
     }
 
+    /**
+     * @param eco ECO code of the opening
+     * @return {@link ArrayList} of moves
+     */
     public ArrayList<String> getOpeningsFromEco(String eco) {
         if (!ecoName.containsKey(eco)) return null;
         return getOpeningFromName(eco + " " + ecoName.get(eco).getFirst());
     }
 
+    /**
+     * @param eco ECO code of the opening
+     * @return {@link String} - First opening name of the given ECO
+     */
     public String getOpeningName(String eco) {
         return ecoName.containsKey(eco) ? ecoName.get(eco).getFirst() : null;
     }
 
+    /**
+     * @param openingName Complete opening name
+     * @return {@link ArrayList} of opening moves
+     */
     public ArrayList<String> getOpeningFromName(String openingName) {
         return allOpenings.getOrDefault(openingName, null);
     }
 
+    /**
+     * Opening tree node
+     */
     private static class MoveNode {
         private final String move, openingName, eco;
         private final ArrayList<MoveNode> moveNodes;
@@ -179,6 +202,11 @@ public class Openings {
             moveNodes = new ArrayList<>();
         }
 
+        /**
+         * Adds child node
+         *
+         * @param moveNode Node with next move
+         */
         private void addNode(MoveNode moveNode) {
             moveNodes.add(moveNode);
         }

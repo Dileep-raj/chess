@@ -1,10 +1,24 @@
 package com.drdedd.chess.misc;
 
-import com.drdedd.chess.game.gameData.Player;
+import com.drdedd.chess.game.data.Player;
+import com.drdedd.chess.game.data.Rank;
 import com.drdedd.chess.game.pieces.Piece;
 
 public class MiscMethods {
 
+    /**
+     * Converts logical move to UCI notation
+     *
+     * @param fromRow       Starting row number
+     * @param fromCol       Starting column number
+     * @param toRow         Ending row number
+     * @param toCol         Ending column number
+     * @param promotionRank Rank of promotion (if the move is pawn promotion)
+     * @return {@link String}
+     */
+    public static String getUCIMove(int fromRow, int fromCol, int toRow, int toCol, Rank promotionRank) {
+        return String.format("%s%s%s", toNotation(fromRow, fromCol), toNotation(toRow, toCol), promotionRank == null ? "" : Character.toLowerCase(promotionRank.getLetter()));
+    }
 
     /**
      * Converts absolute position to column number
@@ -77,8 +91,13 @@ public class MiscMethods {
         return ch;
     }
 
-    public static String convertNumber(long number) {
-        if (number == 0) return "0 ";
+    /**
+     * @param number Number to format
+     * @return {@link String} - Formatted number to the nearest metric notation <br>
+     * Ex: 61.02M
+     */
+    public static String formatNumber(long number) {
+        if (number == 0) return "0";
         String sign = number < 0 ? "-" : "";
         number = Math.abs(number);
         int pow = (int) Math.log10(number) / 3;
@@ -95,10 +114,13 @@ public class MiscMethods {
         return "%s%.2f%s".formatted(sign, convertedNumber, suffix);
     }
 
-    public static String convertBytes(long bytes) {
-        String sign = "";
-        if (bytes < 0) sign = "-";
-        if (bytes == 0) return "0 ";
+    /**
+     * @param bytes Bytes to format
+     * @return {@link String} - Formatted bytes to the nearest notation <br>
+     * Ex: 298.01KB
+     */
+    public static String formatBytes(long bytes) {
+        if (bytes <= 0) return "0 B";
         bytes = Math.abs(bytes);
         int pow = (int) (Math.log(bytes) / Math.log(1024));
         double convertedNumber = bytes / Math.pow(1024, pow);
@@ -111,7 +133,7 @@ public class MiscMethods {
             case 6 -> "E";
             default -> "";
         };
-        return "%s%.2f %s".formatted(sign, convertedNumber, suffix);
+        return "%.2f %sB".formatted(convertedNumber, suffix);
     }
 
     public static double convertToHigherBase(long number, long base, int power) {

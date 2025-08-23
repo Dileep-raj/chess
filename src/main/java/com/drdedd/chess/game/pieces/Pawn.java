@@ -1,8 +1,8 @@
 package com.drdedd.chess.game.pieces;
 
 
-import com.drdedd.chess.game.gameData.Player;
-import com.drdedd.chess.game.gameData.Rank;
+import com.drdedd.chess.game.data.Player;
+import com.drdedd.chess.game.data.Rank;
 import com.drdedd.chess.game.interfaces.GameLogicInterface;
 
 import java.util.HashSet;

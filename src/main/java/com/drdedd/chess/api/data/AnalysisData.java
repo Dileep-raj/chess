@@ -12,9 +12,37 @@ import java.util.ArrayList;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class AnalysisData extends ResponseData {
+public class AnalysisData extends BaseResponseData {
+    /**
+     * Depth of analysis
+     */
     int depth;
-    String engine, pgn;
-    AnalysisReport whiteAnalysis, blackAnalysis;
-    ArrayList<String> fens, evaluations, annotations;
+    /**
+     * Engine used for analysis
+     */
+    String engine;
+    /**
+     * PGN string content
+     */
+    String pgn;
+    /**
+     * Analysis report of white player
+     */
+    AnalysisSummary whiteAnalysis;
+    /**
+     * Analysis report of black player
+     */
+    AnalysisSummary blackAnalysis;
+    /**
+     * List of FENs of board position
+     */
+    ArrayList<String> fens;
+    /**
+     * Evaluations of each position
+     */
+    ArrayList<String> evaluations;
+    /**
+     * Annotations of each move
+     */
+    ArrayList<String> annotations;
 }

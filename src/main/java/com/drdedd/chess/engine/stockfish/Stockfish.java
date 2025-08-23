@@ -2,6 +2,7 @@ package com.drdedd.chess.engine.stockfish;
 
 import com.drdedd.chess.engine.HardwareInfo;
 import com.drdedd.chess.game.data.Regexes;
+import com.drdedd.chess.misc.Log;
 import com.drdedd.chess.misc.MiscMethods;
 import lombok.Getter;
 
@@ -13,11 +14,13 @@ import java.util.regex.Pattern;
 
 /**
  * Stockfish chess engine
+ *
+ * @see <a href="https://stockfishchess.org/">Official Stockfish</a>
  */
 public class Stockfish {
+    public static final String ENGINE_ENV = "ENGINE_PATH";
     private static final String TAG = "Stockfish";
     private static final int timeout = 7500;
-    private static final String ENGINE_UBUNTU = "sf17", ENGINE_WINDOWS = "sf17.exe";
 
     private static final String uciBoardRegex = "^\\s*\\+[\\w\\s|+-]*?h", uciFENRegex = "Fen:.*", multiPVRegex = "multipv \\d";
     private static final Pattern uciBoardPattern = Pattern.compile(uciBoardRegex), uciFENPattern = Pattern.compile(uciFENRegex), multiPVPattern = Pattern.compile(multiPVRegex);
@@ -53,19 +56,28 @@ public class Stockfish {
     private int variations;
     private Timer timer;
 
-    public Stockfish(String threadCount) {
+    /**
+     * @param threadCount Number of threads to use for stockfish process
+     */
+    public Stockfish(int threadCount) {
         HardwareInfo hardwareInfo = new HardwareInfo();
 
         stockfishOptions = new HashMap<>();
         whiteToPlay = true;
         variations = 1;
 
-        String s = File.separator;
+        String path = System.getenv(ENGINE_ENV);
+        if (path == null || path.isEmpty()) {
+            System.err.println("Engine path not set!");
+//            return;
+//            This is for dev environment, remove for deployment
+            String defaultPath = "/mnt/files-hdd/Misc/Development/chess temp files/Stockfish engines/Releases/sf17";
+            System.err.println("Using default value: " + defaultPath);
+            path = defaultPath;
+        }
 
         System.out.println("\nLoading engine...");
-        String path = String.format("src%smain%sresources%sassets%sengine%s%s", s, s, s, s, s, hardwareInfo.getOSName().toLowerCase().contains("linux") ? ENGINE_UBUNTU : ENGINE_WINDOWS);
         try {
-//            ClassPathResource classPathResource = new ClassPathResource(path);
             System.out.println("Engine path: " + path);
             File file = new File(path);
             if (!file.exists()) {
@@ -74,7 +86,7 @@ public class Stockfish {
             }
             stockfishEngine = new ProcessBuilder(path).start();
         } catch (IOException e) {
-            e.printStackTrace(System.err);
+            Log.e(TAG, "Invalid executable!", e);
             return;
         }
 
@@ -85,21 +97,15 @@ public class Stockfish {
         runUCICommand();
 
         long maxMemory = hardwareInfo.getMaxMemory();
-        int threads, hash, maxThreadCount = Integer.parseInt(hardwareInfo.getProperty(HardwareInfo.LOGICAL_CORES));
-
-        if (threadCount != null && !threadCount.isEmpty()) {
-            threads = Integer.parseInt(threadCount);
-            if (threads > hardwareInfo.maximumSafeThreads()) threads = (int) Math.max(1, maxThreadCount * 0.75);
-        } else threads = (int) Math.max(1, maxThreadCount * 0.75);
+        int hash, maxThreadCount = Integer.parseInt(hardwareInfo.getProperty(HardwareInfo.LOGICAL_CORES));
 
         hash = MiscMethods.convertToHigherBase(maxMemory, 1024, 2) > DEFAULT_HASH ? DEFAULT_HASH : 64;
-        setOption(StockfishOption.optionThreads, String.valueOf(threads));
+        setOption(StockfishOption.optionThreads, String.valueOf(threadCount > hardwareInfo.maximumSafeThreads() ? (int) Math.max(1, maxThreadCount * 0.75) : threadCount));
         setOption(StockfishOption.optionHash, String.valueOf(hash));
         if (isReady()) {
             System.out.println("\nStockfish engine is started");
             engineStarted = true;
         } else System.err.println("Engine failed to start");
-
     }
 
     /**
@@ -126,7 +132,7 @@ public class Stockfish {
             engineRunning = false;
             System.out.println("\nEngine stopped and exited");
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            Log.e(TAG, "Could not quit engine!", e);
         }
     }
 
@@ -172,7 +178,6 @@ public class Stockfish {
     private void runUCICommand() {
         String commandResult = getCommandResult(Command.UCI.toString());
         String[] lines = commandResult.split("\\n");
-//        try {
         for (String line : lines)
             if (line.startsWith("id name")) stockfishVersion = line.replace("id name", "").trim();
             else if (line.startsWith("option ")) {
@@ -191,9 +196,6 @@ public class Stockfish {
                 }
                 stockfishOptions.put(name, new StockfishOption(name, type, defaultValue, min, max));
             }
-//        } catch (Exception e) {
-//            e.printStackTrace(System.err);
-//        }
         System.out.printf("Stockfish version: %s%n%n", stockfishVersion);
         System.out.printf("%-20s %-10s %-10s %-10s %-10s%n", StockfishOption.attributeName, StockfishOption.attributeType, StockfishOption.attributeDefault, StockfishOption.attributeMin, StockfishOption.attributeMax);
         for (String optionName : stockfishOptions.keySet()) {
@@ -209,7 +211,7 @@ public class Stockfish {
      * @param line      Line currently reading
      * @param attribute Name of the attribute
      * @param end       End index of substring
-     * @return <code>String</code> - Value of the attribute
+     * @return {@link String} - Value of the attribute
      */
     private String extractAttribute(String line, String attribute, int end) {
         return line.substring(line.indexOf(attribute), end).replace(attribute, "").trim();
@@ -262,7 +264,7 @@ public class Stockfish {
             engineWriter.write(command + N);
             engineWriter.flush();
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            Log.e(TAG, "Could not send command to engine!", e);
         }
     }
 
@@ -339,7 +341,7 @@ public class Stockfish {
         }
         System.out.println("Bench completed");
         engineRunning = false;
-        return "%s nodes searched in %d s at %sn/s".formatted(MiscMethods.convertNumber(nodes), ms, MiscMethods.convertNumber(nps));
+        return "%s nodes searched in %d s at %sn/s".formatted(MiscMethods.formatNumber(nodes), ms, MiscMethods.formatNumber(nps));
     }
 
     /**
@@ -383,7 +385,7 @@ public class Stockfish {
 
     /**
      * @param command Command to execute
-     * @return <code>String</code> - Complete output after executing the command
+     * @return {@link String} - Complete output after executing the command
      */
     private String getCommandResult(String command) {
         StringBuilder result = new StringBuilder();
@@ -402,7 +404,7 @@ public class Stockfish {
     }
 
     /**
-     * @return <code>String</code> - UCI board
+     * @return {@link String} - UCI board
      */
     public String getBoard() {
         String commandResult = getCommandResult(Command.DISPLAY_BOARD.command);
@@ -413,7 +415,7 @@ public class Stockfish {
     }
 
     /**
-     * @return <code>String</code> - FEN of the current position
+     * @return {@link String} - FEN of the current position
      */
     public String getFEN() {
         String commandResult = getCommandResult(Command.DISPLAY_BOARD.command);
@@ -434,21 +436,31 @@ public class Stockfish {
             stopTimeout();
             return line;
         } catch (IOException e) {
-            e.printStackTrace(System.err);
-//            throw new RuntimeException(e);
+            Log.e(TAG, "Error while reading line!", e);
             return null;
         }
     }
 
+    /**
+     * Timeout for reading each engine line
+     *
+     * @param reader BufferedReader object to close after timeout
+     */
     private void setTimeout(BufferedReader reader) {
         timer = new Timer(timeout, reader);
         timer.start();
     }
 
+    /**
+     * Stops the engine timeout
+     */
     private void stopTimeout() {
         timer.interrupt();
     }
 
+    /**
+     * Timeout timer
+     */
     private static class Timer extends Thread {
         private final long ms;
         private final BufferedReader reader;

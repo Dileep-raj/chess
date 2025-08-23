@@ -1,9 +1,9 @@
 package com.drdedd.chess.game;
 
+import com.drdedd.chess.game.data.ChessState;
+import com.drdedd.chess.game.data.Player;
+import com.drdedd.chess.game.data.Rank;
 import com.drdedd.chess.game.data.Regexes;
-import com.drdedd.chess.game.gameData.ChessState;
-import com.drdedd.chess.game.gameData.Player;
-import com.drdedd.chess.game.gameData.Rank;
 import com.drdedd.chess.game.interfaces.GameLogicInterface;
 import com.drdedd.chess.game.interfaces.GameUI;
 import com.drdedd.chess.game.pgn.PGN;
@@ -25,7 +25,6 @@ import static com.drdedd.chess.misc.MiscMethods.toColChar;
 
 /**
  * {@inheritDoc}
- * Fragment to view, play, load and save chess game
  */
 public class GameLogic implements GameLogicInterface {
 
@@ -39,6 +38,7 @@ public class GameLogic implements GameLogicInterface {
     private final String FEN;
     private final Random random = new Random();
     private String white, black, app, date, fromSquare, toSquare;
+    @Getter
     private PGN pgn;
     private BoardModel boardModel = null;
     @Getter
@@ -51,12 +51,13 @@ public class GameLogic implements GameLogicInterface {
     @Getter
     private HashSet<String> allLegalMovesUCI;
     private Thread randomMoveThread;
-    private boolean whiteToPlay, onePlayer, infinitePlay;
+    private boolean whiteToPlay, onePlayer, autoplay;
     private int count, halfMove, fullMove;
 
     /**
      * GameLogic for normal game setup
      *
+     * @param gameUI  Game UI for interaction
      * @param newGame Start new game or resume saved game
      */
     public GameLogic(GameUI gameUI, boolean newGame) {
@@ -70,7 +71,8 @@ public class GameLogic implements GameLogicInterface {
     /**
      * GameLogic with a starting position
      *
-     * @param FEN FEN of the starting position
+     * @param gameUI Game UI for interaction
+     * @param FEN    FEN of the starting position
      */
     public GameLogic(@Nullable GameUI gameUI, String FEN) {
         this.gameUI = gameUI;
@@ -97,7 +99,7 @@ public class GameLogic implements GameLogicInterface {
         FEN = pgnData.getTag(PGN.TAG_FEN, "");
         reset();
 
-        pgn.setPGNData(pgnData);
+        pgn.setData(pgnData);
     }
 
     /**
@@ -130,8 +132,11 @@ public class GameLogic implements GameLogicInterface {
         pgn.setWhiteBlack(white, black);        //Set the white and the black players' names
     }
 
+    /**
+     * Resets game state and data to the default starting position
+     */
     public void reset() {
-        stopInfinitePlay();
+        stopAutoPlay();
         gameTerminated = false;
         whiteToPlay = true;
         halfMove = 0;
@@ -157,91 +162,131 @@ public class GameLogic implements GameLogicInterface {
         pushToStack();
     }
 
+    /**
+     * Plays a random move from all legal moves
+     */
     public void playRandomMove() {
         String randomMove = getRandomMove();
-        String from = randomMove.substring(0, 2), to = randomMove.substring(2, 4);
-        int fromRow = MiscMethods.toRow(from), fromCol = MiscMethods.toCol(from), toRow = MiscMethods.toRow(to), toCol = MiscMethods.toCol(to);
-        if (randomMove.length() == 5) {
-            Pawn pawn = (Pawn) pieceAt(fromRow, fromCol);
-            char ch = randomMove.charAt(4);
-            Rank r = switch (ch) {
-                case 'r' -> Rank.ROOK;
-                case 'n' -> Rank.KNIGHT;
-                case 'b' -> Rank.BISHOP;
-                default -> Rank.QUEEN;
-            };
-            promote(pawn, toRow, toCol, fromRow, fromCol, r);
-            return;
-        }
-        move(fromRow, fromCol, toRow, toCol);
+        move(randomMove);
+//        String from = randomMove.substring(0, 2), to = randomMove.substring(2, 4);
+//        int fromRow = MiscMethods.toRow(from), fromCol = MiscMethods.toCol(from), toRow = MiscMethods.toRow(to), toCol = MiscMethods.toCol(to);
+//        if (randomMove.length() == 5) {
+//            Pawn pawn = (Pawn) pieceAt(fromRow, fromCol);
+//            char ch = randomMove.charAt(4);
+//            Rank r = switch (ch) {
+//                case 'r' -> Rank.ROOK;
+//                case 'n' -> Rank.KNIGHT;
+//                case 'b' -> Rank.BISHOP;
+//                default -> Rank.QUEEN;
+//            };
+//            promote(pawn, toRow, toCol, fromRow, fromCol, r);
+//            return;
+//        }
+//        move(fromRow, fromCol, toRow, toCol);
     }
 
+    /**
+     * Picks a random move from all legal moves
+     *
+     * @return {@link String}
+     */
     public String getRandomMove() {
-        String move = null;
-        try {
-            Set<String> squares = allLegalMoves.keySet();
-            ArrayList<String> array = new ArrayList<>(squares);
-            Collections.shuffle(array);
-
-            // Pick a random piece square
-            String square = array.get(random.nextInt(array.size()));
-            if (square != null) {
-                HashSet<Integer> moves = allLegalMoves.get(square);
-
-                // If piece has no legal moves pick another piece
-                if (moves == null || moves.isEmpty()) for (String p : squares) {
-                    moves = allLegalMoves.get(p);
-                    if (moves != null && !moves.isEmpty()) {
-                        square = p;
-                        break;
-                    }
-                }
-
-                // If legal moves found for a piece
-                if (moves != null && !moves.isEmpty()) {
-                    Piece piece = pieceAt(toRow(square), toCol(square));
-                    ArrayList<Integer> legalMoves = new ArrayList<>(moves);
-                    int position = legalMoves.get(random.nextInt(legalMoves.size()));
-                    int fromRow = piece.getRow(), fromCol = piece.getCol(), row = position / 8, col = position % 8;
-                    move = MiscMethods.toNotation(fromRow, fromCol) + MiscMethods.toNotation(row, col);
-
-                    // If move is promotion promote to random rank
-                    if (piece.getRank() == Rank.PAWN) {
-                        Pawn pawn = (Pawn) piece;
-                        Rank[] ranks = {Rank.QUEEN, Rank.ROOK, Rank.BISHOP, Rank.KNIGHT};
-                        if (pawn.canPromote() && promote(pawn, row, col, fromRow, fromCol, ranks[random.nextInt(ranks.length)])) {
-                            return move + ranks[random.nextInt(ranks.length)].getLetter();
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "run: Exception occurred!", e);
-        }
-        return move;
+        if (allLegalMovesUCI.isEmpty()) return null;
+        ArrayList<String> moves = new ArrayList<>(allLegalMovesUCI);
+        Collections.shuffle(moves);
+        return moves.getFirst();
+//        String move = null;
+//        try {
+//            Set<String> squares = allLegalMoves.keySet();
+//            ArrayList<String> array = new ArrayList<>(squares);
+//            Collections.shuffle(array);
+//
+//            // Pick a random piece square
+//            String square = array.get(random.nextInt(array.size()));
+//            if (square != null) {
+//                HashSet<Integer> moves = allLegalMoves.get(square);
+//
+//                // If piece has no legal moves pick another piece
+//                if (moves == null || moves.isEmpty()) for (String p : squares) {
+//                    moves = allLegalMoves.get(p);
+//                    if (moves != null && !moves.isEmpty()) {
+//                        square = p;
+//                        break;
+//                    }
+//                }
+//
+//                // If legal moves found for a piece
+//                if (moves != null && !moves.isEmpty()) {
+//                    Piece piece = pieceAt(toRow(square), toCol(square));
+//                    ArrayList<Integer> legalMoves = new ArrayList<>(moves);
+//                    int position = legalMoves.get(random.nextInt(legalMoves.size()));
+//                    int fromRow = piece.getRow(), fromCol = piece.getCol(), row = position / 8, col = position % 8;
+//                    move = MiscMethods.toNotation(fromRow, fromCol) + MiscMethods.toNotation(row, col);
+//
+//                    // If move is promotion promote to random rank
+//                    if (piece.getRank() == Rank.PAWN) {
+//                        Pawn pawn = (Pawn) piece;
+//                        Rank[] ranks = {Rank.QUEEN, Rank.ROOK, Rank.BISHOP, Rank.KNIGHT};
+////                        if (pawn.canPromote() && promote(pawn, row, col, fromRow, fromCol, ranks[random.nextInt(ranks.length)]))
+//                        if (pawn.canPromote()) return move + ranks[random.nextInt(ranks.length)].getLetter();
+//                    }
+//                }
+//            }
+//        } catch (Exception e) {
+//            Log.e(TAG, "run: Couldn't pick a random move!", e);
+//        }
+//        return move;
     }
 
-    public void toggleInfinitePlay() {
-        if (infinitePlay) stopInfinitePlay();
+    /**
+     * Toggle auto game play
+     */
+    public void toggleAutoPlay() {
+        if (autoplay) stopAutoPlay();
         else {
             onePlayer = false;
-            infinitePlay = true;
+            autoplay = true;
             playRandomMove();
         }
     }
 
-    public void stopInfinitePlay() {
-        infinitePlay = false;
+    /**
+     * Stop auto game play
+     */
+    public void stopAutoPlay() {
+        autoplay = false;
         try {
             if (randomMoveThread != null) randomMoveThread.join();
         } catch (Exception e) {
-            Log.e(TAG, "stopInfinitePlay: Exception occurred while stopping random move thread!", e);
+            Log.e(TAG, "stopAutoPlay: Exception occurred while stopping random move thread!", e);
         }
     }
 
     @Override
     public Piece pieceAt(int row, int col) {
         return boardModel.pieceAt(row, col);
+    }
+
+    public boolean move(String uci) {
+        if (!uci.matches(Regexes.uciRegex)) {
+            System.err.println("Invalid UCI move: " + uci);
+            return false;
+        }
+        String from = uci.substring(0, 2), to = uci.substring(2, 4);
+        int fromRow = MiscMethods.toRow(from), fromCol = MiscMethods.toCol(from), toRow = MiscMethods.toRow(to), toCol = MiscMethods.toCol(to);
+        if (uci.length() == 5) {
+            Pawn pawn = (Pawn) pieceAt(fromRow, fromCol);
+            char ch = uci.charAt(4);
+            Rank r = switch (ch) {
+                case 'r' -> Rank.ROOK;
+                case 'n' -> Rank.KNIGHT;
+                case 'b' -> Rank.BISHOP;
+                default -> Rank.QUEEN;
+            };
+            System.out.println("Promotion to " + r);
+            return promote(pawn, toRow, toCol, fromRow, fromCol, r);
+        }
+        return move(fromRow, fromCol, toRow, toCol);
     }
 
     @Override
@@ -259,7 +304,7 @@ public class GameLogic implements GameLogicInterface {
         }
         boolean result = makeMove(movingPiece, fromRow, fromCol, toRow, toCol);
         if (result) {
-            if (movingPiece.getRank() == Rank.PAWN || pgn.getMoves().getLast().contains(PGN.CAPTURE)) halfMove = 0;
+            if (movingPiece.getRank() == Rank.PAWN || pgn.getSanMoves().getLast().contains(PGN.CAPTURE)) halfMove = 0;
             else halfMove = boardModel.getHalfMove() + 1;
 
             if (!whiteToPlay) fullMove = boardModel.getFullMove() + 1;
@@ -280,7 +325,7 @@ public class GameLogic implements GameLogicInterface {
             toSquare = toNotation(toRow, toCol);
             toggleGameState();
             pushToStack();
-            if (playerToPlay().isInCheck()) printLegalMoves();
+//            if (playerToPlay().isInCheck()) printLegalMoves();
         }
         return result;
     }
@@ -302,7 +347,7 @@ public class GameLogic implements GameLogicInterface {
             return false;
 
         Piece toPiece = pieceAt(toRow, toCol);
-        String uciMove = getUCIMove(fromRow, fromCol, toRow, toCol, null);
+        String uciMove = MiscMethods.getUCIMove(fromRow, fromCol, toRow, toCol, null);
         if (toPiece != null) if (toPiece.isKing()) return false;
         else if (movingPiece.getPlayer() != toPiece.getPlayer() && movingPiece.canCapture(this, toPiece)) {
             if (movingPiece.getRank() == Rank.PAWN) {
@@ -375,6 +420,17 @@ public class GameLogic implements GameLogicInterface {
 //        dataManager.saveData(boardModel, pgn, boardModelStack, FENs);
     }
 
+    /**
+     * Converts logical move to SAN notation
+     *
+     * @param piece         Piece that is moved
+     * @param fromRow       Starting row number
+     * @param fromCol       Starting column number
+     * @param toRow         Ending row number
+     * @param toCol         Ending column number
+     * @param promotionRank Rank of promotion (if promotion)
+     * @return {@link String}
+     */
     private String getSANMove(Piece piece, int fromRow, int fromCol, int toRow, int toCol, String capture, Rank promotionRank) {
         LinkedHashSet<Piece> pieces = boardModel.pieces;
         String pieceChar;
@@ -414,10 +470,12 @@ public class GameLogic implements GameLogicInterface {
         return String.format("%s%s%s%s%s%s", pieceChar, startCol, startRow, capture, toNotation(toRow, toCol), promotion);
     }
 
-    private String getUCIMove(int fromRow, int fromCol, int toRow, int toCol, Rank promotionRank) {
-        return String.format("%s%s%s", toNotation(fromRow, fromCol), toNotation(toRow, toCol), promotionRank == null ? "" : Character.toLowerCase(promotionRank.getLetter()));
-    }
-
+    /**
+     * Adds move to the pgn
+     *
+     * @param sanMove Move in SAN notation
+     * @param uciMove Move in UCI notation
+     */
     private void addMove(String sanMove, String uciMove) {
         pgn.addMove(sanMove, uciMove);
     }
@@ -470,7 +528,7 @@ public class GameLogic implements GameLogicInterface {
 
         Piece tempPiece = pieceAt(row, col);
         String sanMove = getSANMove(pawn, fromRow, fromCol, row, col, tempPiece == null ? "" : PGN.CAPTURE, rank);
-        String uciMove = getUCIMove(fromRow, fromCol, row, col, rank);
+        String uciMove = MiscMethods.getUCIMove(fromRow, fromCol, row, col, rank);
         Piece promotedPiece = boardModel.promote(pawn, rank, row, col);
         if (tempPiece != null) {
             if (tempPiece.getPlayer() != promotedPiece.getPlayer()) {
@@ -507,7 +565,7 @@ public class GameLogic implements GameLogicInterface {
         boolean promoted = false;
         Piece tempPiece = pieceAt(row, col);
         String sanMove = getSANMove(pawn, fromRow, fromCol, row, col, tempPiece == null ? "" : PGN.CAPTURE, rank);
-        String uciMove = getUCIMove(fromRow, fromCol, row, col, rank);
+        String uciMove = MiscMethods.getUCIMove(fromRow, fromCol, row, col, rank);
         Piece promotedPiece = boardModel.promote(pawn, rank, row, col);
         if (tempPiece != null) {
             if (tempPiece.getPlayer() != promotedPiece.getPlayer()) {
@@ -535,11 +593,17 @@ public class GameLogic implements GameLogicInterface {
         return gameTerminated;
     }
 
+    /**
+     * Toggle game state between white's and black's turn
+     */
     private void toggleGameState() {
         whiteToPlay = !whiteToPlay;
         pgn.setWhiteToPlay(whiteToPlay);
     }
 
+    /**
+     * Push all game objects to stack
+     */
     private void pushToStack() {
         boardModelStack.push(boardModel.clone());
         FENs.push(boardModel.toFEN());
@@ -552,6 +616,9 @@ public class GameLogic implements GameLogicInterface {
         updateAll();
     }
 
+    /**
+     * Undo the last move played
+     */
     private void undoLastMove() {
         if (gameTerminated) return;
         pgn.removeLast();
@@ -628,6 +695,11 @@ public class GameLogic implements GameLogicInterface {
         }
     }
 
+    /**
+     * Checks if the player has no legal moves
+     *
+     * @return <code>true|false</code>
+     */
     private boolean noLegalMoves() {
         Set<Map.Entry<String, HashSet<Integer>>> legalMoves = allLegalMoves.entrySet();
         for (Map.Entry<String, HashSet<Integer>> entry : legalMoves)
@@ -659,6 +731,12 @@ public class GameLogic implements GameLogicInterface {
         terminateGame(ChessState.TIMEOUT);
     }
 
+    /**
+     * Checks for draw by insufficient material
+     *
+     * @return <code>true|false</code>
+     * @see <a href="https://en.wikipedia.org/wiki/Rules_of_chess#Dead_position">Dead position</a>
+     */
     private boolean drawByInsufficientMaterial() {
         boolean KB = false, kb = false, BLight = false, bLight = false;
         LinkedHashSet<Piece> pieces = boardModel.pieces;
@@ -672,8 +750,7 @@ public class GameLogic implements GameLogicInterface {
         if (whitePieces.size() == 1 && blackPieces.size() == 1) return true;
         else if (whitePieces.size() <= 2 && blackPieces.size() == 1 || whitePieces.size() == 1 && blackPieces.size() <= 2) {
             for (Piece whitePiece : whitePieces)
-                if (whitePiece.getRank() == Rank.BISHOP || whitePiece.getRank() == com.drdedd.chess.game.gameData.Rank.KNIGHT)
-                    return true;
+                if (whitePiece.getRank() == Rank.BISHOP || whitePiece.getRank() == Rank.KNIGHT) return true;
             for (Piece blackPiece : blackPieces)
                 if (blackPiece.getRank() == Rank.BISHOP || blackPiece.getRank() == Rank.KNIGHT) return true;
         } else if (whitePieces.size() <= 2 && blackPieces.size() <= 2) {
@@ -692,6 +769,12 @@ public class GameLogic implements GameLogicInterface {
         return false;
     }
 
+    /**
+     * Checks for draw by repetition
+     *
+     * @return <code>true|false</code>
+     * @see <a href="https://en.wikipedia.org/wiki/Threefold_repetition">Threefold repetition</a>
+     */
     private boolean drawByRepetition() {
         int i = 0, j, l = FENs.size();
         String[] positions = new String[l];
@@ -860,10 +943,6 @@ public class GameLogic implements GameLogicInterface {
         return allLegalMoves;
     }
 
-    public PGN getPGN() {
-        return pgn;
-    }
-
     /**
      * Converts absolute position to column number
      */
@@ -904,10 +983,6 @@ public class GameLogic implements GameLogicInterface {
      */
     public static String toNotation(int row, int col) {
         return "" + (char) ('a' + col) + (row + 1);
-    }
-
-    public void playRandomGame() {
-        while (!gameTerminated) playRandomMove();
     }
 
     /**

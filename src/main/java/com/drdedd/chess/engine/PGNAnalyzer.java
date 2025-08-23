@@ -1,23 +1,27 @@
 package com.drdedd.chess.engine;
 
 import com.drdedd.chess.api.data.AnalysisData;
-import com.drdedd.chess.api.data.AnalysisReport;
+import com.drdedd.chess.api.data.AnalysisSummary;
 import com.drdedd.chess.engine.stockfish.EngineLine;
 import com.drdedd.chess.engine.stockfish.Stockfish;
 import com.drdedd.chess.engine.stockfish.StockfishOption;
 import com.drdedd.chess.game.ParsedGame;
+import com.drdedd.chess.game.data.ChessAnnotation;
 import com.drdedd.chess.game.data.Regexes;
-import com.drdedd.chess.game.gameData.ChessAnnotation;
 import com.drdedd.chess.game.pgn.PGN;
 import com.drdedd.chess.game.pgn.PGNData;
 import com.drdedd.chess.game.pgn.PGNParser;
 import com.drdedd.chess.misc.Log;
 import com.drdedd.chess.misc.MiscMethods;
 import lombok.Getter;
+import org.springframework.http.HttpStatus;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
+/**
+ * Analyze the given PGN using chess engine
+ */
 public class PGNAnalyzer {
     public static final int NO_LIMIT = -1, MAX_DEPTH = 30, MIN_DEPTH = 15;
     private static final float blunderThreshold = 2.5f, mistakeThreshold = 1.2f, inaccuracyThreshold = 0.6f;
@@ -35,8 +39,12 @@ public class PGNAnalyzer {
     private PGNData pgnData;
     private ArrayList<String> moves;
     @Getter
-    private AnalysisReport whiteReport, blackReport;
+    private AnalysisSummary whiteSummary, blackSummary;
 
+    /**
+     * @param depth     Depth of analysis
+     * @param timeLimit Time limit for individual move evaluation
+     */
     public PGNAnalyzer(int depth, int timeLimit) {
         initialEvaluationTime = 15000;
         evaluationDepth = depth < 0 ? MIN_DEPTH : Math.min(depth, MAX_DEPTH);
@@ -47,10 +55,17 @@ public class PGNAnalyzer {
         moves = new ArrayList<>();
         winPercentage = new ArrayList<>();
         accuracy = new ArrayList<>();
-        whiteReport = new AnalysisReport();
-        blackReport = new AnalysisReport();
+        whiteSummary = new AnalysisSummary();
+        blackSummary = new AnalysisSummary();
     }
 
+    /**
+     * Perform analysis
+     *
+     * @param pgnContent  PGN string content
+     * @param includeFENs Flag to include FENs in analysis data
+     * @return {@link AnalysisData}
+     */
     public AnalysisData analyzePGN(String pgnContent, boolean includeFENs) {
         System.out.println("Analyzing PGN:");
         System.out.printf("%n%s%n%n", pgnContent);
@@ -58,8 +73,8 @@ public class PGNAnalyzer {
         annotations.clear();
         winPercentage.clear();
         accuracy.clear();
-        whiteReport = new AnalysisReport();
-        blackReport = new AnalysisReport();
+        whiteSummary = new AnalysisSummary();
+        blackSummary = new AnalysisSummary();
 
         AnalysisData data = new AnalysisData();
         data.setSuccess(false);
@@ -70,7 +85,7 @@ public class PGNAnalyzer {
             pgnParser.parse();
             ParsedGame parsedGame = pgnParser.getParsedGame();
             pgn = parsedGame.pgn();
-            pgnData = pgn.getPGNData();
+            pgnData = pgn.getData();
             FENs = new ArrayList<>(parsedGame.FENs());
             moves = new ArrayList<>(pgn.getUCIMoves());
             LinkedHashMap<String, String> tagsMap = pgnData.getTagsMap();
@@ -78,7 +93,7 @@ public class PGNAnalyzer {
 
             // Initialize engine
             HardwareInfo hardwareInfo = new HardwareInfo();
-            stockfish = new Stockfish(String.valueOf(hardwareInfo.maximumSafeThreads()));
+            stockfish = new Stockfish(hardwareInfo.maximumSafeThreads());
 
             data.setEngine(stockfish.getStockfishVersion());
 
@@ -92,11 +107,12 @@ public class PGNAnalyzer {
             // Generate report
             computeReport();
             data.setMessage("Analysis successful");
+            data.setStatus(HttpStatus.CREATED);
             data.setSuccess(true);
             data.setPgn(pgnString);
             data.setDepth(evaluationDepth);
-            data.setWhiteAnalysis(whiteReport);
-            data.setBlackAnalysis(blackReport);
+            data.setWhiteAnalysis(whiteSummary);
+            data.setBlackAnalysis(blackSummary);
             data.setEvaluations(evaluations);
             data.setAnnotations(annotations);
             if (includeFENs) data.setFens(new ArrayList<>(parsedGame.FENs()));
@@ -107,6 +123,9 @@ public class PGNAnalyzer {
         return data;
     }
 
+    /**
+     * Compute final report after analysis
+     */
     private void computeReport() {
         long whiteACPL = Math.round(whiteCPLoss / whiteCPMoves);
         long blackACPL = Math.round(blackCPLoss / blackCPMoves);
@@ -118,21 +137,21 @@ public class PGNAnalyzer {
         whiteAccuracy = computeAverageAccuracy(true);
         blackAccuracy = computeAverageAccuracy(false);
 
-        whiteReport.setName(whiteName);
-        whiteReport.setGreat(whiteGreatMoves);
-        whiteReport.setInaccuracy(whiteInaccuracies);
-        whiteReport.setMistake(whiteMistakes);
-        whiteReport.setBlunder(whiteBlunders);
-        whiteReport.setAcpl((int) whiteACPL);
-        whiteReport.setAccuracy((int) whiteAccuracy);
+        whiteSummary.setName(whiteName);
+        whiteSummary.setGreat(whiteGreatMoves);
+        whiteSummary.setInaccuracy(whiteInaccuracies);
+        whiteSummary.setMistake(whiteMistakes);
+        whiteSummary.setBlunder(whiteBlunders);
+        whiteSummary.setAcpl((int) whiteACPL);
+        whiteSummary.setAccuracy((int) whiteAccuracy);
 
-        blackReport.setName(blackName);
-        blackReport.setGreat(blackGreatMoves);
-        blackReport.setInaccuracy(blackInaccuracies);
-        blackReport.setMistake(blackMistakes);
-        blackReport.setBlunder(blackBlunders);
-        blackReport.setAcpl((int) blackACPL);
-        blackReport.setAccuracy((int) blackAccuracy);
+        blackSummary.setName(blackName);
+        blackSummary.setGreat(blackGreatMoves);
+        blackSummary.setInaccuracy(blackInaccuracies);
+        blackSummary.setMistake(blackMistakes);
+        blackSummary.setBlunder(blackBlunders);
+        blackSummary.setAcpl((int) blackACPL);
+        blackSummary.setAccuracy((int) blackAccuracy);
     }
 
     /**
@@ -185,7 +204,7 @@ public class PGNAnalyzer {
                 accuracy.add(acc);
 
                 FEN = stockfish.getFEN();
-                System.out.printf("Move %3d: %-5s eval: %-8s depth %3s %8sn/s%n", (i - 1) / 2 + 1, move, currentLines.getFirst().getEval(), currentLines.getFirst().getDepth(), MiscMethods.convertNumber(Long.parseLong(currentLines.getFirst().getNps())));
+                System.out.printf("Move %3d: %-5s eval: %-8s depth %3s %8sn/s%n", (i - 1) / 2 + 1, move, currentLines.getFirst().getEval(), currentLines.getFirst().getDepth(), MiscMethods.formatNumber(Long.parseLong(currentLines.getFirst().getNps())));
 
                 whiteToMove = !whiteToMove;
 
@@ -235,7 +254,7 @@ public class PGNAnalyzer {
      * @param winPercentAfter  Win percentage after the move
      * @return <code>int</code> - Accuracy of the move
      */
-    private static int computeAccuracy(double winPercentBefore, double winPercentAfter) {
+    private int computeAccuracy(double winPercentBefore, double winPercentAfter) {
 //        System.out.printf("winPercentBefore = %.0f, winPercentAfter = %.0f%n", winPercentBefore, winPercentAfter);
         return (int) (103.1668 * Math.exp(-0.04354 * (winPercentBefore - winPercentAfter)) - 3.1669);
     }
@@ -260,7 +279,7 @@ public class PGNAnalyzer {
      * @param previousEvaluation Analysis of previous position
      * @param currentEvaluation  Analysis of current position
      * @param whitesMove         Whether the current move was made by white
-     * @return <code>String</code> - Chess move annotation <code>(??|?|?!)</code>
+     * @return {@link String} - Chess move annotation <code>(??|?|?!)</code>
      */
     private ChessAnnotation getAnnotation(String move, ArrayList<EngineLine> previousLines, String previousEvaluation, String currentEvaluation, boolean whitesMove) {
         switch (currentEvaluation) {
@@ -328,7 +347,7 @@ public class PGNAnalyzer {
     }
 
     /**
-     * @return <code>String</code> - Parsed and analyzed PGN with annotations
+     * @return {@link String} - Parsed and analyzed PGN with annotations
      */
     public String getAnalyzedPGN() {
         return pgnString;
