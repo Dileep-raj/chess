@@ -1,4 +1,4 @@
-package com.drdedd.chess.api.data;
+package com.drdedd.chess.data;
 
 import lombok.Data;
 import lombok.Getter;

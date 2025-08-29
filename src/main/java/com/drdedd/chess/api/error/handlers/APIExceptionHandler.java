@@ -1,6 +1,6 @@
 package com.drdedd.chess.api.error.handlers;
 
-import com.drdedd.chess.api.data.BaseResponseData;
+import com.drdedd.chess.api.BaseResponseData;
 import com.drdedd.chess.api.error.exceptions.BadRequestException;
 import com.drdedd.chess.api.error.exceptions.InternalServerErrorException;
 import com.drdedd.chess.api.error.exceptions.ResourceNotFoundException;

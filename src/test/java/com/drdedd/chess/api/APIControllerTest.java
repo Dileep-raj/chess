@@ -1,6 +1,6 @@
 package com.drdedd.chess.api;
 
-import com.drdedd.chess.api.data.EvaluationData;
+import com.drdedd.chess.data.EvaluationData;
 import com.drdedd.chess.game.data.FENs;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

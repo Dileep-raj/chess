@@ -1,7 +1,7 @@
 package com.drdedd.chess.engine;
 
-import com.drdedd.chess.api.data.AnalysisData;
-import com.drdedd.chess.api.data.AnalysisSummary;
+import com.drdedd.chess.data.AnalysisData;
+import com.drdedd.chess.data.AnalysisSummary;
 import com.drdedd.chess.engine.stockfish.EngineLine;
 import com.drdedd.chess.engine.stockfish.Stockfish;
 import com.drdedd.chess.engine.stockfish.StockfishOption;
@@ -14,7 +14,6 @@ import com.drdedd.chess.game.pgn.PGNParser;
 import com.drdedd.chess.misc.Log;
 import com.drdedd.chess.misc.MiscMethods;
 import lombok.Getter;
-import org.springframework.http.HttpStatus;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -77,8 +76,6 @@ public class PGNAnalyzer {
         blackSummary = new AnalysisSummary();
 
         AnalysisData data = new AnalysisData();
-        data.setSuccess(false);
-
         try {
             // Parse PGN
             PGNParser pgnParser = new PGNParser(pgnContent);
@@ -106,9 +103,6 @@ public class PGNAnalyzer {
 
             // Generate report
             computeReport();
-            data.setMessage("Analysis successful");
-            data.setStatus(HttpStatus.CREATED);
-            data.setSuccess(true);
             data.setPgn(pgnString);
             data.setDepth(evaluationDepth);
             data.setWhiteAnalysis(whiteSummary);

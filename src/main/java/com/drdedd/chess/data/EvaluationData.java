@@ -1,8 +1,7 @@
-package com.drdedd.chess.api.data;
+package com.drdedd.chess.data;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.util.List;
 
@@ -10,9 +9,8 @@ import java.util.List;
  * Chess position evaluation data
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@EqualsAndHashCode(callSuper = true)
 @Data
-public class EvaluationData extends BaseResponseData {
+public class EvaluationData {
     /**
      * FEN of the position
      */

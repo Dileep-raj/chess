@@ -1,8 +1,7 @@
-package com.drdedd.chess.api.data;
+package com.drdedd.chess.data;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,9 +10,8 @@ import java.util.HashSet;
  * Legal moves of a given position
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@EqualsAndHashCode(callSuper = true)
 @Data
-public class LegalMovesData extends BaseResponseData {
+public class LegalMovesData {
     /**
      * FEN of the position
      */
@@ -21,7 +19,7 @@ public class LegalMovesData extends BaseResponseData {
     /**
      * Set of UCI moves
      */
-    HashSet<String> uci;
+    HashSet<String> moves;
     /**
      * Legal moves from each square
      */

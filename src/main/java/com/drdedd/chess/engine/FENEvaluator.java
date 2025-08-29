@@ -1,11 +1,10 @@
 package com.drdedd.chess.engine;
 
-import com.drdedd.chess.api.data.EvaluationData;
+import com.drdedd.chess.data.EvaluationData;
 import com.drdedd.chess.engine.stockfish.EngineLine;
 import com.drdedd.chess.engine.stockfish.Stockfish;
 import com.drdedd.chess.engine.stockfish.StockfishOption;
 import com.drdedd.chess.game.data.Regexes;
-import org.springframework.http.HttpStatus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,16 +32,14 @@ public class FENEvaluator {
      * @return {@link EvaluationData}
      */
     public EvaluationData evaluate(String FEN) {
-        EvaluationData data = new EvaluationData();
-        data.setSuccess(false);
-        data.setFen(FEN);
-
         if (!FEN.matches(Regexes.FENRegex)) {
-            data.setError("Invalid FEN!");
-            return data;
+//            data.setError("Invalid FEN!");
+            return null;
         }
 
+        EvaluationData data = new EvaluationData();
         try {
+            data.setFen(FEN);
             // Initialize engine
             HardwareInfo hardwareInfo = new HardwareInfo();
             Stockfish stockfish = new Stockfish(hardwareInfo.maximumSafeThreads());
@@ -57,9 +54,6 @@ public class FENEvaluator {
 
             for (EngineLine line : engineLines) variations.add(line.moves);
 
-            data.setSuccess(true);
-            data.setMessage("Evaluation successful");
-            data.setStatus(HttpStatus.OK);
             data.setEval(engineLines.getFirst().getEval());
             data.setBestmove(engineLines.getFirst().getBestmove());
             data.setEngineLine(engineLines.getFirst().getLine());

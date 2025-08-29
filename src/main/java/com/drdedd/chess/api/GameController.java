@@ -1,24 +1,34 @@
 package com.drdedd.chess.api;
 
-import com.drdedd.chess.api.data.GameData;
+import com.drdedd.chess.db.GamesService;
+import com.drdedd.chess.data.Game;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/api/game")
+@RequestMapping(value = "/api/game", produces = MediaType.APPLICATION_JSON_VALUE)
 public class GameController {
 
-    private String newGame(GameData data) {
-        String id = "";
-        return id;
+    @Autowired
+    private GamesService gamesService;
+
+    @PostMapping
+    public ResponseEntity<Game> saveGame(@RequestBody Game game) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(gamesService.saveGame(game));
     }
 
-    @GetMapping("/{gameId}/export")
-    public ResponseEntity<Object> exportGame(@PathVariable String gameId, @RequestParam("clocks") boolean clocks) {
-        GameData data = new GameData();
-        // TODO get game from MongoDB
-        return new ResponseEntity<>(data, HttpStatus.OK);
+    @GetMapping
+    public ResponseEntity<List<Game>> getAllGames() {
+        return ResponseEntity.ok(gamesService.getAllGames());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Game> getGame(@PathVariable String id) {
+        return ResponseEntity.ok(gamesService.getGameById(id));
+    }
 }

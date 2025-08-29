@@ -1,8 +1,7 @@
-package com.drdedd.chess.api.data;
+package com.drdedd.chess.data;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.util.ArrayList;
 
@@ -10,9 +9,8 @@ import java.util.ArrayList;
  * Chess game analysis data
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@EqualsAndHashCode(callSuper = true)
 @Data
-public class AnalysisData extends BaseResponseData {
+public class AnalysisData {
     /**
      * Depth of analysis
      */

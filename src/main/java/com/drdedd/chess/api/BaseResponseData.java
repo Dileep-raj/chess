@@ -1,4 +1,4 @@
-package com.drdedd.chess.api.data;
+package com.drdedd.chess.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;

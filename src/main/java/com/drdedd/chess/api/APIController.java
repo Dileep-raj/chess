@@ -1,8 +1,11 @@
 package com.drdedd.chess.api;
 
-import com.drdedd.chess.api.data.*;
 import com.drdedd.chess.api.error.exceptions.BadRequestException;
 import com.drdedd.chess.api.error.exceptions.InternalServerErrorException;
+import com.drdedd.chess.data.AnalysisData;
+import com.drdedd.chess.data.EvaluationData;
+import com.drdedd.chess.data.LegalMovesData;
+import com.drdedd.chess.data.OpeningData;
 import com.drdedd.chess.engine.FENEvaluator;
 import com.drdedd.chess.engine.PGNAnalyzer;
 import com.drdedd.chess.engine.stockfish.Stockfish;
@@ -40,7 +43,7 @@ public class APIController {
         Stockfish stockfish = new Stockfish(1);
         String stockfishVersion = stockfish.getStockfishVersion();
         stockfish.stopEngine();
-        return new ResponseEntity<>("%s%nStockfish Version: %s".formatted(ABOUT, stockfishVersion), HttpStatus.OK);
+        return ResponseEntity.ok("%s%nStockfish Version: %s".formatted(ABOUT, stockfishVersion));
     }
 
     /**
@@ -67,10 +70,19 @@ public class APIController {
             long start = System.nanoTime();
             String error = validateFEN(FEN);
             if (error != null) throw new BadRequestException(error);
-            FENEvaluator evaluator = new FENEvaluator(depth, variations);
-            EvaluationData data = evaluator.evaluate(FEN.trim());
+            EvaluationData evaluation = new FENEvaluator(depth, variations).evaluate(FEN.trim());
+            BaseResponseData data = new BaseResponseData();
+            if (evaluation == null) {
+                data.setSuccess(false);
+                data.setError("Invalid FEN");
+                data.setStatus(HttpStatus.BAD_REQUEST);
+            } else {
+                data.setSuccess(true);
+                data.setMessage("Evaluation successful");
+                data.setStatus(HttpStatus.OK);
+            }
             data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
-            return new ResponseEntity<>(data, HttpStatus.OK);
+            return ResponseEntity.ok(data);
         } catch (Exception e) {
             System.err.println("Error while evaluation position!");
             e.printStackTrace(System.err);
@@ -95,8 +107,15 @@ public class APIController {
         boolean includeFENs = (boolean) payload.getOrDefault("fens", false);
         try {
             PGNAnalyzer analyzer = new PGNAnalyzer(depth, time);
-            AnalysisData data = analyzer.analyzePGN(pgnString, includeFENs);
+            BaseResponseData data = new BaseResponseData();
+            AnalysisData analysis = analyzer.analyzePGN(pgnString, includeFENs);
             data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
+            data.setData(analysis);
+            if (analysis != null) {
+                data.setMessage("Analysis successful");
+                data.setStatus(HttpStatus.CREATED);
+                data.setSuccess(true);
+            }
             if (accept == null || accept.equalsIgnoreCase(MediaType.TEXT_PLAIN_VALUE))
                 return new ResponseEntity<>(analyzer.getAnalyzedPGN(), data.getStatus());
             return new ResponseEntity<>(data, data.getStatus());
@@ -147,28 +166,17 @@ public class APIController {
             if (error != null) throw new BadRequestException(error);
 
             GameLogic gameLogic = new GameLogic(null, FEN);
-            HashMap<String, HashSet<Integer>> allLegalMoves = gameLogic.getAllLegalMoves();
-            LegalMovesData data = new LegalMovesData();
-            data.setSuccess(false);
+            LegalMovesData legalMoves = new LegalMovesData();
+            legalMoves.setFen(FEN);
+            legalMoves.setMoves(gameLogic.getAllLegalMovesUCI());
 
-            HashMap<String, HashSet<String>> legalMoves = new HashMap<>();
-            Set<Map.Entry<String, HashSet<Integer>>> entries = allLegalMoves.entrySet();
-            for (Map.Entry<String, HashSet<Integer>> entry : entries) {
-                String square = entry.getKey();
-                HashSet<Integer> movesInt = entry.getValue();
-                HashSet<String> moves = new HashSet<>();
-                for (int move : movesInt) moves.add(MiscMethods.toNotation(move));
-                legalMoves.put(square, moves);
-            }
-
+            BaseResponseData data = new BaseResponseData();
             data.setSuccess(true);
-            data.setFen(FEN);
             data.setMessage("Legal moves computed successfully");
             data.setStatus(HttpStatus.OK);
-            data.setUci(gameLogic.getAllLegalMovesUCI());
-            data.setLegalMoves(legalMoves);
+            data.setData(legalMoves);
             data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
-            return new ResponseEntity<>(data, data.getStatus());
+            return ResponseEntity.ok(data);
         } catch (Exception e) {
             System.err.println("Error while computing legal moves");
             e.printStackTrace(System.err);
@@ -216,7 +224,7 @@ public class APIController {
     public ResponseEntity<Object> opening(@PathVariable String eco) {
         try {
             long start = System.nanoTime();
-            OpeningData data = new OpeningData();
+            BaseResponseData data = new BaseResponseData();
             data.setSuccess(false);
             Openings openings = Openings.getInstance();
             ArrayList<String> moves = openings.getOpeningsFromEco(eco);
@@ -224,13 +232,15 @@ public class APIController {
             else {
                 data.setSuccess(true);
                 data.setMessage("Opening found successfully!");
-                data.setEco(eco);
-                data.setName(openings.getOpeningName(eco));
-                data.setMoves(moves);
-                data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
+                OpeningData opening = new OpeningData();
+                opening.setEco(eco);
+                opening.setName(openings.getOpeningName(eco));
+                opening.setUci(moves);
+                data.setData(opening);
             }
             data.setStatus(HttpStatus.OK);
-            return new ResponseEntity<>(data, data.getStatus());
+            data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
+            return ResponseEntity.ok(data);
         } catch (Exception e) {
             throw new InternalServerErrorException("Error while loading openings");
         }
@@ -245,7 +255,7 @@ public class APIController {
     @GetMapping(value = "/getOpening", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Object> searchOpenings(@RequestParam("moves") String moves) {
         long start = System.nanoTime();
-        OpeningData data = new OpeningData();
+        BaseResponseData data = new BaseResponseData();
         data.setSuccess(false);
         try {
             Openings openings = Openings.getInstance();
@@ -253,24 +263,26 @@ public class APIController {
             PGNParser parser = new PGNParser(moves);
             parser.parse();
             ParsedGame parsedGame = parser.getParsedGame();
-            String opening = parsedGame.opening();
+            String name = parsedGame.opening();
             int lastBookMove = parsedGame.lastBookMove();
-            if (opening != null) {
+            if (name != null) {
                 ArrayList<String> openingMoves = openings.getOpeningFromName(parsedGame.eco() + " " + parsedGame.opening());
                 PGNParser openingParser = new PGNParser(String.join(" ", openingMoves));
                 openingParser.parse();
                 ParsedGame openingGame = openingParser.getParsedGame();
                 data.setSuccess(true);
                 data.setMessage("Opening found successfully!");
-                data.setUci(openingGame.pgn().getUCIMoves());
-                data.setMoves(openingGame.pgn().getSanMoves());
-                data.setLastMove(lastBookMove);
-                data.setEco(parsedGame.eco());
-                data.setName(opening);
-                data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
+                OpeningData opening = new OpeningData();
+                opening.setUci(openingGame.pgn().getUCIMoves());
+                opening.setMoves(openingGame.pgn().getSanMoves());
+                opening.setLastMove(lastBookMove);
+                opening.setEco(parsedGame.eco());
+                opening.setName(name);
+                data.setData(opening);
             } else data.setMessage("Opening not found!");
             data.setStatus(HttpStatus.OK);
-            return new ResponseEntity<>(data, data.getStatus());
+            data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
+            return ResponseEntity.ok(data);
         } catch (Exception e) {
             Log.e(TAG, "searchOpenings: Error occurred while loading openings", e);
             throw new InternalServerErrorException("Error while loading openings");
@@ -290,19 +302,15 @@ public class APIController {
 
     private void findCheckMates(List<String> list, String FEN, int depth, String moves) {
         if (depth >= 2) return;        // Limit depth to 2 ply
-//        System.out.println("Searching position " + FEN);
 
         GameLogic gameLogic = new GameLogic(null, FEN);
         HashSet<String> legalMoves = gameLogic.getAllLegalMovesUCI();
-
-        // Check every legal move with new game logic instance
-        for (String legalMove : legalMoves) {
+        for (String legalMove : legalMoves) {       // Check every legal move with new game logic instance
             GameLogic temp = new GameLogic(null, gameLogic.getBoardModel().toFEN());
             if (temp.move(legalMove)) {
                 this.legalMoves++;
-//                String s = (moves + " " + temp.getPgn().getPgnMoves().getFirst()).trim();
                 String s = (moves + " " + legalMove).trim();
-                if (temp.isGameTerminated()) {
+                if (temp.isGameTerminated() && depth % 2 == 0) {
                     System.out.printf("%s Moves: %s  %n", temp.getResult(), s);
                     list.add(s);
                 } else findCheckMates(list, temp.getBoardModel().toFEN(), depth + 1, s);
