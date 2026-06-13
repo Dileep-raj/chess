@@ -32,10 +32,6 @@ public class AnalysisData {
      */
     AnalysisSummary blackAnalysis;
     /**
-     * List of FENs of board position
-     */
-    ArrayList<String> fens;
-    /**
      * Evaluations of each position
      */
     ArrayList<String> evaluations;

@@ -35,7 +35,6 @@ public class PGN implements Serializable {
     @Setter
     @Getter
     private PGNData data;
-    @Getter
     @Setter
     private ArrayList<PGNMove> pgnMoves;
     /**

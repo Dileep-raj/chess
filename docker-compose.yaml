@@ -1,0 +1,30 @@
+services:
+  mongodb:
+    image: mongo:8.2.7
+    container_name: mongodb
+    restart: unless-stopped
+    hostname: mongodb
+    env_file:
+      - .env
+    ports:
+      - "27017:27017"
+    volumes:
+      - db:/data/db
+    healthcheck:
+      test: [ CMD, mongosh, 'mongodb://localhost:27017/admin', '--eval=db.runCommand({ping:1})' ]
+      retries: 3
+      timeout: 5s
+
+  app:
+    build: .
+    container_name: chess_backend
+    restart: always
+    ports:
+      - "8000:8080"
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+
+volumes:
+  db:

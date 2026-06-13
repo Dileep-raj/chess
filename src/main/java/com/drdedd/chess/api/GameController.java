@@ -1,7 +1,7 @@
 package com.drdedd.chess.api;
 
-import com.drdedd.chess.db.GamesService;
 import com.drdedd.chess.data.Game;
+import com.drdedd.chess.db.GamesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -30,5 +30,12 @@ public class GameController {
     @GetMapping("/{id}")
     public ResponseEntity<Game> getGame(@PathVariable String id) {
         return ResponseEntity.ok(gamesService.getGameById(id));
+    }
+
+    @PostMapping("/new")
+    public ResponseEntity<String> newGame() {
+        Game game = new Game();
+        gamesService.saveGame(game);
+        return ResponseEntity.ok(game.getGameId());
     }
 }

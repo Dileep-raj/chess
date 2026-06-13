@@ -1,6 +1,7 @@
 package com.drdedd.chess.data;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.mongodb.lang.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
@@ -16,11 +17,14 @@ import java.util.Map;
 public class Game {
     @Id
     String gameId;
-    List<String> uci, san;
+    @Nullable
+    String startingPosition;
+    List<String> uciMoves;
     PlayersData players;
     Map<String, String> tags;
     ClocksData clocks;
     AnalysisData analysis;
     @JsonFormat(pattern = "yyyy.MM.dd")
     Date date;
+    boolean ongoing;
 }

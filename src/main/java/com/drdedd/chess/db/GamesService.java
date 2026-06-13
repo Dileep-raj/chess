@@ -2,6 +2,7 @@ package com.drdedd.chess.db;
 
 import com.drdedd.chess.data.Game;
 import com.drdedd.chess.db.repository.GamesRepository;
+import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +18,7 @@ public class GamesService {
         return gamesRepository.findAll();
     }
 
-    public Game getGameById(String id) {
+    public Game getGameById(@NonNull String id) {
         return gamesRepository.findById(id).orElse(null);
     }
 

@@ -62,10 +62,9 @@ public class PGNAnalyzer {
      * Perform analysis
      *
      * @param pgnContent  PGN string content
-     * @param includeFENs Flag to include FENs in analysis data
      * @return {@link AnalysisData}
      */
-    public AnalysisData analyzePGN(String pgnContent, boolean includeFENs) {
+    public AnalysisData analyzePGN(String pgnContent) {
         System.out.println("Analyzing PGN:");
         System.out.printf("%n%s%n%n", pgnContent);
         evaluations.clear();
@@ -109,7 +108,6 @@ public class PGNAnalyzer {
             data.setBlackAnalysis(blackSummary);
             data.setEvaluations(evaluations);
             data.setAnnotations(annotations);
-            if (includeFENs) data.setFens(new ArrayList<>(parsedGame.FENs()));
         } catch (Exception e) {
             System.err.println("Error while analyzing PGN!");
             e.printStackTrace(System.err);

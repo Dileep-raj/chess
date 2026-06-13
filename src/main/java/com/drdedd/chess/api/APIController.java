@@ -80,6 +80,7 @@ public class APIController {
                 data.setSuccess(true);
                 data.setMessage("Evaluation successful");
                 data.setStatus(HttpStatus.OK);
+                data.setData(evaluation);
             }
             data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
             return ResponseEntity.ok(data);
@@ -104,11 +105,10 @@ public class APIController {
         int time = (int) payload.getOrDefault("time", PGNAnalyzer.NO_LIMIT);
         if (!payload.containsKey("pgn")) throw new BadRequestException("Missing/Invalid pgn");
         String pgnString = payload.get("pgn").toString();
-        boolean includeFENs = (boolean) payload.getOrDefault("fens", false);
         try {
             PGNAnalyzer analyzer = new PGNAnalyzer(depth, time);
             BaseResponseData data = new BaseResponseData();
-            AnalysisData analysis = analyzer.analyzePGN(pgnString, includeFENs);
+            AnalysisData analysis = analyzer.analyzePGN(pgnString);
             data.setTime(MiscMethods.formatNanoseconds(System.nanoTime() - start));
             data.setData(analysis);
             if (analysis != null) {

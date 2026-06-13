@@ -738,7 +738,7 @@ public class GameLogic implements GameLogicInterface {
      * @see <a href="https://en.wikipedia.org/wiki/Rules_of_chess#Dead_position">Dead position</a>
      */
     private boolean drawByInsufficientMaterial() {
-        boolean KB = false, kb = false, BLight = false, bLight = false;
+        boolean whiteKingAndBishop = false, blackKingAndBishop = false, whiteBishopSquareColor = false, blackBishopSquareColor = false;
         LinkedHashSet<Piece> pieces = boardModel.pieces;
         HashSet<Piece> whitePieces = new HashSet<>(), blackPieces = new HashSet<>();
         for (Piece piece : pieces) {
@@ -747,24 +747,27 @@ public class GameLogic implements GameLogicInterface {
             else blackPieces.add(piece);
         }
 
-        if (whitePieces.size() == 1 && blackPieces.size() == 1) return true;
+        if (whitePieces.size() == 1 && blackPieces.size() == 1) return true;  // If only kings are remaining
         else if (whitePieces.size() <= 2 && blackPieces.size() == 1 || whitePieces.size() == 1 && blackPieces.size() <= 2) {
+            // If less than 2 pieces remains for either of the players
+            // If only a bishop or a knight remains for any player
             for (Piece whitePiece : whitePieces)
                 if (whitePiece.getRank() == Rank.BISHOP || whitePiece.getRank() == Rank.KNIGHT) return true;
             for (Piece blackPiece : blackPieces)
                 if (blackPiece.getRank() == Rank.BISHOP || blackPiece.getRank() == Rank.KNIGHT) return true;
         } else if (whitePieces.size() <= 2 && blackPieces.size() <= 2) {
+            // If less than 2 pieces remains for both the players
             for (Piece whitePiece : whitePieces)
                 if (whitePiece.getRank() == Rank.BISHOP) {
-                    KB = true;
-                    BLight = (whitePiece.getRow() + whitePiece.getCol()) % 2 == 0;
+                    whiteKingAndBishop = true;
+                    whiteBishopSquareColor = (whitePiece.getRow() + whitePiece.getCol()) % 2 == 0;
                 }
             for (Piece blackPiece : blackPieces)
                 if (blackPiece.getRank() == Rank.BISHOP) {
-                    kb = true;
-                    bLight = (blackPiece.getRow() + blackPiece.getCol()) % 2 == 0;
+                    blackKingAndBishop = true;
+                    blackBishopSquareColor = (blackPiece.getRow() + blackPiece.getCol()) % 2 == 0;
                 }
-            return KB && kb && BLight == bLight;
+            return whiteKingAndBishop && blackKingAndBishop && whiteBishopSquareColor == blackBishopSquareColor;
         }
         return false;
     }

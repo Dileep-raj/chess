@@ -5,6 +5,11 @@ import lombok.Getter;
 
 @Data
 public class PlayerData {
+
+    String name;
+    Title title;
+    int elo;
+
     public PlayerData() {
     }
 
@@ -13,10 +18,6 @@ public class PlayerData {
         this.title = title;
         this.elo = elo;
     }
-
-    String name;
-    Title title;
-    int elo;
 
     /**
      * Chess titles according to FIDE rules

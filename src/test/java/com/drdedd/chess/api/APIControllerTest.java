@@ -45,7 +45,8 @@ public class APIControllerTest {
         ResponseEntity<Object> evaluation = controller.evaluation(FENs.defaultPosition, 15, 1);
         Object body = evaluation.getBody();
         if (body != null) System.out.println(body);
-        assertInstanceOf(EvaluationData.class, body);
-
+        assertInstanceOf(BaseResponseData.class, body);
+        BaseResponseData data = (BaseResponseData) body;
+        assertInstanceOf(EvaluationData.class, data.getData());
     }
 }
